@@ -62,10 +62,41 @@ A Model Context Protocol (MCP) server that enables AI models to interact with Ob
 
 **Option A: Use Pre-built Binary** (Recommended)
 
-```bash
-# Download the latest release for your platform
-# Extract and note the binary location
-```
+1. **Download the latest release for your platform from the [Releases page](https://github.com/tlockney/obsidian-mcp/releases)**
+
+2. **Extract the binary:**
+   ```bash
+   # For Linux/macOS .tar.gz files
+   tar -xzf obsidian-mcp-*.tar.gz
+
+   # For Windows/macOS .zip files  
+   unzip obsidian-mcp-*.zip
+   ```
+
+3. **On macOS: Handle security warning**
+
+   macOS will flag the unsigned binary as a security risk. To allow it:
+
+   **Method 1: Using System Preferences** (Recommended)
+   - Try to run the binary: `./obsidian-mcp-mac-arm64`
+   - macOS will show a security dialog
+   - Go to **System Preferences** → **Security & Privacy** → **General**
+   - Click **"Allow Anyway"** next to the blocked app message
+   - Run the binary again and click **"Open"** when prompted
+
+   **Method 2: Using Terminal** (Advanced)
+   ```bash
+   # Remove quarantine attribute
+   xattr -d com.apple.quarantine obsidian-mcp-mac-arm64
+
+   # Make executable (if needed)
+   chmod +x obsidian-mcp-mac-arm64
+   ```
+
+   **Method 3: System Settings** (macOS 13+)
+   - Go to **Apple Menu** → **System Settings** → **Privacy & Security**
+   - Scroll down to **Security** section
+   - Click **"Allow Anyway"** next to the blocked app
 
 **Option B: Build from Source**
 
@@ -213,6 +244,13 @@ Instead of a binary, you can run directly with Deno:
 ```bash
 obsidian-mcp --help  # Shows all available options and examples
 ```
+
+**macOS Security Issues:**
+
+If macOS blocks the binary with "cannot be opened because it is from an unidentified developer":
+
+- See the [macOS security instructions](#step-2-install-the-mcp-server) above
+- Or use: `xattr -d com.apple.quarantine obsidian-mcp-mac-arm64`
 
 **Connection Issues:**
 
