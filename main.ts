@@ -3,30 +3,32 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { load } from "@std/dotenv";
 import { ObsidianApiClient } from "./src/obsidian-api-client.ts";
+import { parseCliArgs, showHelp, validateConfig } from "./src/cli.ts";
 
 // Load environment variables
 await load({ export: true });
 
+// Parse CLI arguments
+const cliConfig = parseCliArgs(Deno.args);
+
+// Show help and exit if requested
+if (cliConfig.showHelp) {
+  showHelp();
+  Deno.exit(0);
+}
+
+// Validate and use configuration
+const config = validateConfig({
+  obsidianApiUrl: cliConfig.obsidianApiUrl,
+  apiKey: cliConfig.apiKey,
+});
+
 // Create the MCP server instance
 const server = new McpServer({
   name: "obsidian-mcp",
-  version: "0.1.0",
+  version: "0.1.5",
   description:
     "MCP server for interacting with Obsidian through the Local REST API",
-});
-
-// Configuration schema
-const ConfigSchema = z.object({
-  obsidianApiUrl: z.string().url().default("http://localhost:27123"),
-  apiKey: z.string().optional(),
-});
-
-type Config = z.infer<typeof ConfigSchema>;
-
-// Load configuration
-const config: Config = ConfigSchema.parse({
-  obsidianApiUrl: Deno.env.get("OBSIDIAN_API_URL") || "http://localhost:27123",
-  apiKey: Deno.env.get("OBSIDIAN_API_KEY"),
 });
 
 // Create API client
