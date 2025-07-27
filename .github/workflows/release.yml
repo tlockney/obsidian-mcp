@@ -60,8 +60,12 @@ jobs:
 
       - name: Package binary
         run: |
+          # Copy essential files to build directory
           cp README.md build/
           cp .env.example build/
+          cp LICENSE build/
+          
+          # Package the files
           cd build
           if [[ "${{ matrix.target }}" == *"windows"* ]]; then
             zip -r ../artifacts/${{ matrix.name }}-v${{ steps.version.outputs.VERSION }}.zip *
