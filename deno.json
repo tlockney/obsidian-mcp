@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.1.1",
   "tasks": {
     "dev": "deno run --allow-net --allow-env --allow-read --allow-write --allow-run --watch main.ts",
     "start": "deno run --allow-net --allow-env --allow-read --allow-write --allow-run main.ts",
