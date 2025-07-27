@@ -53,7 +53,7 @@ jobs:
             --target ${{ matrix.target }} \
             --output ./build/${{ matrix.name }} \
             --no-check \
-            main.ts
+            src/main.ts
 
       - name: Create artifact directory
         run: mkdir -p artifacts

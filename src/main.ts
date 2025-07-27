@@ -2,8 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { load } from "@std/dotenv";
-import { ObsidianApiClient } from "./src/obsidian-api-client.ts";
-import { parseCliArgs, showHelp, validateConfig } from "./src/cli.ts";
+import { ObsidianApiClient } from "./obsidian-api-client.ts";
+import { parseCliArgs, showHelp, validateConfig } from "./cli.ts";
 
 // Load environment variables
 await load({ export: true });

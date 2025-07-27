@@ -208,7 +208,7 @@ Instead of a binary, you can run directly with Deno:
         "--allow-net",
         "--allow-env",
         "--allow-read",
-        "/path/to/obsidian-mcp/main.ts",
+        "/path/to/obsidian-mcp/src/main.ts",
         "--api-url",
         "http://localhost:27123",
         "--api-key",
@@ -231,7 +231,7 @@ Instead of a binary, you can run directly with Deno:
         "--allow-net",
         "--allow-env",
         "--allow-read",
-        "/path/to/obsidian-mcp/main.ts"
+        "/path/to/obsidian-mcp/src/main.ts"
       ],
       "env": {
         "OBSIDIAN_API_URL": "http://localhost:27123",
