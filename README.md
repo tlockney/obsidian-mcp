@@ -24,6 +24,7 @@ A Model Context Protocol (MCP) server that enables AI models to interact with Ob
    ```
 
 4. **Run and configure:**
+
    ```bash
    # See all options
    ./obsidian-mcp-binary --help
@@ -65,11 +66,12 @@ A Model Context Protocol (MCP) server that enables AI models to interact with Ob
 1. **Download the latest release for your platform from the [Releases page](https://github.com/tlockney/obsidian-mcp/releases)**
 
 2. **Extract the binary:**
+
    ```bash
    # For Linux/macOS .tar.gz files
    tar -xzf obsidian-mcp-*.tar.gz
 
-   # For Windows/macOS .zip files  
+   # For Windows/macOS .zip files
    unzip obsidian-mcp-*.zip
    ```
 
@@ -85,6 +87,7 @@ A Model Context Protocol (MCP) server that enables AI models to interact with Ob
    - Run the binary again and click **"Open"** when prompted
 
    **Method 2: Using Terminal** (Advanced)
+
    ```bash
    # Remove quarantine attribute
    xattr -d com.apple.quarantine obsidian-mcp-mac-arm64
@@ -154,6 +157,7 @@ OBSIDIAN_API_KEY=your-api-key
 2. **Add the MCP server configuration:**
 
    **Option A: Using CLI Arguments** (Recommended)
+
    ```json
    {
      "mcpServers": {
@@ -171,6 +175,7 @@ OBSIDIAN_API_KEY=your-api-key
    ```
 
    **Option B: Using Environment Variables**
+
    ```json
    {
      "mcpServers": {

@@ -46,7 +46,7 @@ export function parseCliArgs(args: string[]): CliConfig {
 
 export function showHelp(): void {
   const helpText = `
-Obsidian MCP Server v0.1.5
+Obsidian MCP Server v0.2.0
 
 A Model Context Protocol (MCP) server that enables AI models to interact with
 Obsidian vaults through the Local REST API plugin.
