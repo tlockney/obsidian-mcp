@@ -23,7 +23,16 @@ A Model Context Protocol (MCP) server that enables AI models to interact with Ob
    OBSIDIAN_API_KEY=your-api-key-from-obsidian
    ```
 
-4. **Add to your MCP client** (e.g., Claude Desktop) - see [Claude Desktop Setup](#claude-desktop-setup) below.
+4. **Run and configure:**
+   ```bash
+   # See all options
+   ./obsidian-mcp-binary --help
+
+   # Run with custom settings
+   ./obsidian-mcp-binary --api-url http://localhost:27123 --api-key your-key
+   ```
+
+5. **Add to your MCP client** (e.g., Claude Desktop) - see [Claude Desktop Setup](#claude-desktop-setup) below.
 
 ## Available Tools
 
@@ -68,12 +77,41 @@ deno task build-mac  # or build-linux-x86_64, build-windows-x86_64
 
 ### Step 3: Configure the Server
 
-Create a `.env` file or set environment variables:
+You can configure the server using CLI arguments, environment variables, or a `.env` file:
+
+**Option A: CLI Arguments** (Recommended)
 
 ```bash
-OBSIDIAN_API_URL=http://localhost:27123  # Obsidian API endpoint
-OBSIDIAN_API_KEY=your-api-key            # From Obsidian plugin settings
+# Show help and all options
+obsidian-mcp --help
+
+# Use default settings
+obsidian-mcp
+
+# Custom configuration
+obsidian-mcp --api-url http://localhost:27123 --api-key your-api-key
+
+# Short options
+obsidian-mcp -u http://localhost:8080 -k your-key
 ```
+
+**Option B: Environment Variables**
+
+```bash
+export OBSIDIAN_API_URL=http://localhost:27123
+export OBSIDIAN_API_KEY=your-api-key
+obsidian-mcp
+```
+
+**Option C: .env File**
+
+```bash
+# Create .env file
+OBSIDIAN_API_URL=http://localhost:27123
+OBSIDIAN_API_KEY=your-api-key
+```
+
+**Configuration Priority:** CLI arguments > Environment variables > Default values
 
 ## Claude Desktop Setup
 
@@ -84,6 +122,24 @@ OBSIDIAN_API_KEY=your-api-key            # From Obsidian plugin settings
 
 2. **Add the MCP server configuration:**
 
+   **Option A: Using CLI Arguments** (Recommended)
+   ```json
+   {
+     "mcpServers": {
+       "obsidian": {
+         "command": "/path/to/obsidian-mcp-binary",
+         "args": [
+           "--api-url",
+           "http://localhost:27123",
+           "--api-key",
+           "your-api-key"
+         ]
+       }
+     }
+   }
+   ```
+
+   **Option B: Using Environment Variables**
    ```json
    {
      "mcpServers": {
@@ -103,6 +159,31 @@ OBSIDIAN_API_KEY=your-api-key            # From Obsidian plugin settings
 ### Using with Deno Runtime
 
 Instead of a binary, you can run directly with Deno:
+
+**With CLI Arguments:**
+
+```json
+{
+  "mcpServers": {
+    "obsidian": {
+      "command": "deno",
+      "args": [
+        "run",
+        "--allow-net",
+        "--allow-env",
+        "--allow-read",
+        "/path/to/obsidian-mcp/main.ts",
+        "--api-url",
+        "http://localhost:27123",
+        "--api-key",
+        "your-api-key"
+      ]
+    }
+  }
+}
+```
+
+**With Environment Variables:**
 
 ```json
 {
@@ -127,6 +208,12 @@ Instead of a binary, you can run directly with Deno:
 
 ## Troubleshooting
 
+**Get Help:**
+
+```bash
+obsidian-mcp --help  # Shows all available options and examples
+```
+
 **Connection Issues:**
 
 - Ensure Obsidian is running with the Local REST API plugin enabled
@@ -141,11 +228,12 @@ Instead of a binary, you can run directly with Deno:
 **Testing the Server:**
 
 ```bash
-# Set environment variables
+# Test with CLI arguments
+./obsidian-mcp-binary --api-url http://localhost:27123 --api-key your-key
+
+# Test with environment variables
 export OBSIDIAN_API_URL="http://localhost:27123"
 export OBSIDIAN_API_KEY="your-api-key"
-
-# Test the binary
 echo '{}' | ./obsidian-mcp-binary
 ```
 
