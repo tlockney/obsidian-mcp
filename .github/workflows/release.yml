@@ -63,6 +63,8 @@ jobs:
           # Package only the binary
           if [[ "${{ matrix.target }}" == *"linux"* ]]; then
             tar -czf artifacts/${{ matrix.name }}-v${{ steps.version.outputs.VERSION }}.tar.gz -C build ${{ matrix.name }}
+          elif [[ "${{ matrix.target }}" == *"windows"* ]]; then
+            cd build && zip ../artifacts/${{ matrix.name }}-v${{ steps.version.outputs.VERSION }}.zip ${{ matrix.name }}.exe
           else
             cd build && zip ../artifacts/${{ matrix.name }}-v${{ steps.version.outputs.VERSION }}.zip ${{ matrix.name }}
           fi
