@@ -65,13 +65,12 @@ jobs:
           cp .env.example build/
           cp LICENSE build/
           
-          # Package the files
+          # Package the files (include hidden files like .env.example)
           cd build
           if [[ "${{ matrix.target }}" == *"windows"* ]]; then
-            zip -r ../artifacts/${{ matrix.name }}-v${{ steps.version.outputs.VERSION }}.zip *
+            zip -r ../artifacts/${{ matrix.name }}-v${{ steps.version.outputs.VERSION }}.zip . -x .git/\*
           else
-            tar -czf ../artifacts/${{ matrix.name }}-v${{ steps.version.outputs.VERSION }}.tar.gz *
-          fi
+            tar -czf ../artifacts/${{ matrix.name }}-v${{ steps.version.outputs.VERSION }}.tar.gz --exclude='.git' .
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
