@@ -71,6 +71,7 @@ jobs:
             zip -r ../artifacts/${{ matrix.name }}-v${{ steps.version.outputs.VERSION }}.zip . -x .git/\*
           else
             tar -czf ../artifacts/${{ matrix.name }}-v${{ steps.version.outputs.VERSION }}.tar.gz --exclude='.git' .
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
