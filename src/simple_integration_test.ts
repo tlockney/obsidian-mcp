@@ -27,17 +27,17 @@ Deno.test("ObsidianApiClient Unit Tests", async (t) => {
     // These should fail due to connection refused
     await assertRejects(
       () => client.getStatus(),
-      Error
+      Error,
     );
 
     await assertRejects(
       () => client.listFiles(),
-      Error
+      Error,
     );
 
     await assertRejects(
       () => client.getFile("test.md"),
-      Error
+      Error,
     );
   });
 

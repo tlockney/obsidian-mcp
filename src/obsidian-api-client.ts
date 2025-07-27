@@ -72,7 +72,8 @@ export class ObsidianApiClient {
       let errorMessage: string;
       try {
         const errorJson = JSON.parse(errorText);
-        errorMessage = errorJson.message || `HTTP error! status: ${response.status}`;
+        errorMessage = errorJson.message ||
+          `HTTP error! status: ${response.status}`;
       } catch {
         errorMessage = errorText || `HTTP error! status: ${response.status}`;
       }

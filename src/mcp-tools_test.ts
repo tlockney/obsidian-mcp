@@ -5,7 +5,9 @@ import { ObsidianApiClient } from "./obsidian-api-client.ts";
 import { MockObsidianServer } from "./mock-server.ts";
 
 // Mock the main server setup for testing tools
-async function createTestServer(apiClient: ObsidianApiClient): Promise<McpServer> {
+async function createTestServer(
+  apiClient: ObsidianApiClient,
+): Promise<McpServer> {
   const server = new McpServer({
     name: "test-obsidian-mcp",
     version: "0.1.0",
@@ -25,7 +27,8 @@ async function createTestServer(apiClient: ObsidianApiClient): Promise<McpServer
         return {
           content: [{
             type: "text",
-            text: `Connected to Obsidian v${status.versions.obsidian} with ${status.manifest.name} v${status.manifest.version}`,
+            text:
+              `Connected to Obsidian v${status.versions.obsidian} with ${status.manifest.name} v${status.manifest.version}`,
           }],
         };
       } catch (error) {
@@ -85,7 +88,9 @@ async function createTestServer(apiClient: ObsidianApiClient): Promise<McpServer
         return {
           content: [{
             type: "text",
-            text: `Found ${response.files.length} files:\n${response.files.join("\n")}`,
+            text: `Found ${response.files.length} files:\n${
+              response.files.join("\n")
+            }`,
           }],
         };
       } catch (error) {
@@ -143,8 +148,10 @@ Deno.test("MCP Tools Tests", async (t) => {
 
   await t.step("Tool error handling", async () => {
     // Test error handling by attempting to get a nonexistent file
-    mockServer.setHandler("GET", "/vault/nonexistent.md", () =>
-      new Response("Not Found", { status: 404 })
+    mockServer.setHandler(
+      "GET",
+      "/vault/nonexistent.md",
+      () => new Response("Not Found", { status: 404 }),
     );
 
     try {

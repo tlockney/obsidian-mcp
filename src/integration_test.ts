@@ -79,14 +79,16 @@ Deno.test("ObsidianApiClient Integration Tests", async (t) => {
   });
 
   await t.step("Error handling - nonexistent file", async () => {
-    mockServer.setHandler("GET", "/vault/nonexistent.md", () =>
-      new Response("Not Found", { status: 404 })
+    mockServer.setHandler(
+      "GET",
+      "/vault/nonexistent.md",
+      () => new Response("Not Found", { status: 404 }),
     );
 
     await assertRejects(
       () => client.getFile("nonexistent.md"),
       Error,
-      "Failed to get file"
+      "Failed to get file",
     );
   });
 
@@ -96,13 +98,15 @@ Deno.test("ObsidianApiClient Integration Tests", async (t) => {
       // No API key
     });
 
-    mockServer.setHandler("GET", "/vault/", () =>
-      new Response("Unauthorized", { status: 401 })
+    mockServer.setHandler(
+      "GET",
+      "/vault/",
+      () => new Response("Unauthorized", { status: 401 }),
     );
 
     await assertRejects(
       () => unauthorizedClient.listFiles(),
-      Error
+      Error,
     );
   });
 
