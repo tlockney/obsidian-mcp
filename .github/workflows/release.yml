@@ -60,17 +60,11 @@ jobs:
 
       - name: Package binary
         run: |
-          # Copy essential files to build directory
-          cp README.md build/
-          cp .env.example build/
-          cp LICENSE build/
-          
-          # Package the files (include hidden files like .env.example)
-          cd build
-          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
-            zip -r ../artifacts/${{ matrix.name }}-v${{ steps.version.outputs.VERSION }}.zip . -x .git/\*
+          # Package only the binary
+          if [[ "${{ matrix.target }}" == *"linux"* ]]; then
+            tar -czf artifacts/${{ matrix.name }}-v${{ steps.version.outputs.VERSION }}.tar.gz -C build ${{ matrix.name }}
           else
-            tar -czf ../artifacts/${{ matrix.name }}-v${{ steps.version.outputs.VERSION }}.tar.gz --exclude='.git' .
+            cd build && zip ../artifacts/${{ matrix.name }}-v${{ steps.version.outputs.VERSION }}.zip ${{ matrix.name }}
           fi
 
       - name: Upload artifacts
