@@ -2,6 +2,8 @@
 
 A Model Context Protocol (MCP) server that enables AI models to interact with Obsidian vaults through the Obsidian Local REST API plugin.
 
+There are other implementations of this that follow a very similar pattern. I built this solely to scratch an itch: as much as anything, I just wanted to see what building an MCP looked like. I also wanted to use Deno for this task. A nice side-effect is that it can provide binary builds.
+
 ## Quick Start
 
 1. **Install Prerequisites:**
