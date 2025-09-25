@@ -91,7 +91,10 @@ source: Claude
 # Test Plan
 This is a test.`;
 
-  mockClient.createOrUpdateFile("Technical Plans/Inbox/test-plan.md", testContent);
+  mockClient.createOrUpdateFile(
+    "Technical Plans/Inbox/test-plan.md",
+    testContent,
+  );
 
   // Mark as reviewed
   const result = await manager.markReviewed("test-plan.md");
@@ -113,17 +116,23 @@ Deno.test("TechnicalPlansManager - listTechnicalPlans", async () => {
   const manager = new TechnicalPlansManager(mockClient as any);
 
   // Create test files in different folders
-  await mockClient.createOrUpdateFile("Technical Plans/Inbox/plan1.md", `---
+  await mockClient.createOrUpdateFile(
+    "Technical Plans/Inbox/plan1.md",
+    `---
 project: Project1
 type: Design
 ---
-Content 1`);
+Content 1`,
+  );
 
-  await mockClient.createOrUpdateFile("Technical Plans/Reviewed/plan2.md", `---
+  await mockClient.createOrUpdateFile(
+    "Technical Plans/Reviewed/plan2.md",
+    `---
 project: Project2
 type: Architecture
 ---
-Content 2`);
+Content 2`,
+  );
 
   const allPlans = await manager.listTechnicalPlans();
   assertEquals(allPlans.length, 2);
