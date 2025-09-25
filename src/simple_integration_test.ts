@@ -1,4 +1,4 @@
-import { assertEquals, assertExists, assertRejects } from "@std/assert";
+import { assertExists, assertRejects } from "@std/assert";
 import { ObsidianApiClient } from "./obsidian-api-client.ts";
 
 // Simple integration tests without a mock server

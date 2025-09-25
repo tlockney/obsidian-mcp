@@ -1,5 +1,5 @@
 {
-  "version": "0.3.2",
+  "version": "0.3.3",
   "tasks": {
     "dev": "deno run --allow-net --allow-env --allow-read --allow-write --allow-run --watch src/main.ts",
     "start": "deno run --allow-net --allow-env --allow-read --allow-write --allow-run src/main.ts",
@@ -22,7 +22,9 @@
   },
   "compilerOptions": {
     "strict": true,
-    "lib": ["deno.window"],
+    "lib": [
+      "deno.window"
+    ],
     "jsx": "react"
   },
   "fmt": {
@@ -35,7 +37,9 @@
   },
   "lint": {
     "rules": {
-      "tags": ["recommended"]
+      "tags": [
+        "recommended"
+      ]
     }
   }
 }

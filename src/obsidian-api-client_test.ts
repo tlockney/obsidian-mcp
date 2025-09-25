@@ -1,4 +1,4 @@
-import { assertEquals, assertExists, assertRejects } from "@std/assert";
+import { assertEquals, assertExists } from "@std/assert";
 import {
   ApiStatusResponseSchema,
   CommandsResponseSchema,

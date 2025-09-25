@@ -298,7 +298,7 @@ export class TechnicalPlansManager {
             }
           }
         }
-      } catch (error) {
+      } catch {
         // Directory doesn't exist or can't be read, skip it silently
         // This is expected for directories that haven't been created yet
       }

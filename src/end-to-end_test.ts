@@ -12,7 +12,7 @@ Deno.test("End-to-End MCP Server Tests", async (t) => {
     });
 
     // Test that we can register all the tools without errors
-    const mockApiClient = new ObsidianApiClient({
+    const _mockApiClient = new ObsidianApiClient({
       apiUrl: "http://localhost:27123",
       apiKey: "test-key",
     });
@@ -24,7 +24,7 @@ Deno.test("End-to-End MCP Server Tests", async (t) => {
         description: "Test connectivity to Obsidian",
         inputSchema: {},
       },
-      async () => ({
+      () => ({
         content: [{ type: "text", text: "Pong!" }],
       }),
     );
@@ -37,7 +37,7 @@ Deno.test("End-to-End MCP Server Tests", async (t) => {
           path: z.string().describe("File path"),
         },
       },
-      async ({ path }) => ({
+      ({ path }) => ({
         content: [{ type: "text", text: `Content of ${path}` }],
       }),
     );

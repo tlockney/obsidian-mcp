@@ -1,17 +1,18 @@
 import { assertEquals, assertExists } from "@std/assert";
 import { TechnicalPlansManager } from "./technical-plans-manager.ts";
+import type { ObsidianApiClient } from "./obsidian-api-client.ts";
 
 // Mock API client for testing
-class MockApiClient {
+class MockApiClient implements Partial<ObsidianApiClient> {
   private files: Map<string, string> = new Map();
 
-  async listFiles() {
-    return {
+  listFiles(): Promise<{ files: string[] }> {
+    return Promise.resolve({
       files: Array.from(this.files.keys()),
-    };
+    });
   }
 
-  async getFile(path: string): Promise<string> {
+  getFile(path: string): Promise<string> {
     // Handle directory requests that return JSON with file lists
     if (path.endsWith("/")) {
       const dirFiles = Array.from(this.files.keys())
@@ -26,22 +27,24 @@ class MockApiClient {
           return filePath.substring(dirPathWithoutSlash.length + 1);
         });
 
-      return JSON.stringify({ files: dirFiles });
+      return Promise.resolve(JSON.stringify({ files: dirFiles }));
     }
 
     const content = this.files.get(path);
     if (!content) {
       throw new Error(`File not found: ${path}`);
     }
-    return content;
+    return Promise.resolve(content);
   }
 
-  async createOrUpdateFile(path: string, content: string): Promise<void> {
+  createOrUpdateFile(path: string, content: string): Promise<void> {
     this.files.set(path, content);
+    return Promise.resolve();
   }
 
-  async deleteFile(path: string): Promise<void> {
+  deleteFile(path: string): Promise<void> {
     this.files.delete(path);
+    return Promise.resolve();
   }
 
   // For testing - get all stored files
@@ -52,7 +55,7 @@ class MockApiClient {
 
 Deno.test("TechnicalPlansManager - createTechnicalPlan", async () => {
   const mockClient = new MockApiClient();
-  const manager = new TechnicalPlansManager(mockClient as any);
+  const manager = new TechnicalPlansManager(mockClient as unknown as ObsidianApiClient);
 
   const content = "# Test Plan\nThis is a test technical plan.";
   const metadata = {
@@ -79,7 +82,7 @@ Deno.test("TechnicalPlansManager - createTechnicalPlan", async () => {
 
 Deno.test("TechnicalPlansManager - initializeStructure", async () => {
   const mockClient = new MockApiClient();
-  const manager = new TechnicalPlansManager(mockClient as any);
+  const manager = new TechnicalPlansManager(mockClient as unknown as ObsidianApiClient);
 
   await manager.initializeStructure();
 
@@ -94,7 +97,7 @@ Deno.test("TechnicalPlansManager - initializeStructure", async () => {
 
 Deno.test("TechnicalPlansManager - markReviewed", async () => {
   const mockClient = new MockApiClient();
-  const manager = new TechnicalPlansManager(mockClient as any);
+  const manager = new TechnicalPlansManager(mockClient as unknown as ObsidianApiClient);
 
   // Create a test file in inbox first
   const testContent = `---
@@ -130,7 +133,7 @@ This is a test.`;
 
 Deno.test("TechnicalPlansManager - listTechnicalPlans", async () => {
   const mockClient = new MockApiClient();
-  const manager = new TechnicalPlansManager(mockClient as any);
+  const manager = new TechnicalPlansManager(mockClient as unknown as ObsidianApiClient);
 
   // Create test files in different folders
   await mockClient.createOrUpdateFile(

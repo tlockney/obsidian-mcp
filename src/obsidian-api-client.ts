@@ -164,7 +164,7 @@ export class ObsidianApiClient {
   async getActiveFile(): Promise<unknown> {
     // Note: The active endpoint seems to have response format issues
     // Returning unknown until we can determine the correct format
-    return this.request("/active/");
+    return await this.request("/active/");
   }
 
   async updateActiveFile(content: string): Promise<void> {
