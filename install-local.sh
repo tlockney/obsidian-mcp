@@ -122,16 +122,16 @@ if [[ -z "$EXTRACTED_BINARY" ]]; then
     exit 1
 fi
 
+# Remove macOS quarantine attribute to prevent security warnings
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    echo -e "${BLUE}🔓 Removing macOS quarantine attribute...${NC}"
+    xattr -dr com.apple.quarantine "$EXTRACTED_BINARY" 2>/dev/null || true
+fi
+
 # Install binary
 echo -e "${BLUE}🚀 Installing to $INSTALL_DIR/$BINARY_NAME${NC}"
 cp "$EXTRACTED_BINARY" "$INSTALL_DIR/$BINARY_NAME"
 chmod +x "$INSTALL_DIR/$BINARY_NAME"
-
-# Remove macOS quarantine attribute to prevent security warnings
-if [[ "$(uname -s)" == "Darwin" ]]; then
-    echo -e "${BLUE}🔓 Removing macOS quarantine attribute...${NC}"
-    xattr -dr com.apple.quarantine "$INSTALL_DIR/$BINARY_NAME" 2>/dev/null || true
-fi
 
 # Cleanup
 rm -rf "$TEMP_DIR"
