@@ -39,18 +39,37 @@ There are other implementations of this that follow a very similar pattern. I bu
 
 ## Available Tools
 
+### Core File Operations
+
 - **`ping`**: Test connectivity to Obsidian
 - **`list_files`**: List all files in your vault
 - **`get_file`**: Read a specific file
 - **`put_file`**: Create or update a file
 - **`patch_file`**: Partially update a file
 - **`delete_file`**: Delete a file
+
+### Active Note Operations
+
 - **`get_active`**: Get the currently active note
 - **`replace_active`**: Replace active note content
 - **`patch_active`**: Update active note content
 - **`append_active`**: Append to active note
+
+### Obsidian Commands
+
 - **`list_commands`**: List available Obsidian commands
 - **`execute_command`**: Execute an Obsidian command
+
+### Technical Plans Management
+
+- **`create_technical_plan`**: Create a new technical plan with metadata in the Inbox
+- **`mark_plan_reviewed`**: Mark a plan as reviewed (moves from Inbox to Reviewed)
+- **`archive_plan`**: Archive a technical plan
+- **`list_technical_plans`**: List technical plans, optionally filtered by folder
+- **`get_plan_metadata`**: Get metadata for a specific technical plan
+- **`archive_old_reviewed_plans`**: Archive reviewed plans older than specified days
+
+The Technical Plans Management tools provide automated workflow management for AI-generated technical documentation, with organized folder structure (Inbox/Reviewed/Archive), frontmatter metadata, and lifecycle management.
 
 ## Setup Guide
 
@@ -308,6 +327,103 @@ echo '{}' | ./obsidian-mcp-binary
 - `deno task build-mac` - Build macOS binary
 - `deno task build-linux-x86_64` - Build Linux x86_64 binary
 - `deno task build-windows-x86_64` - Build Windows binary
+
+## Releasing
+
+This project uses automated GitHub workflows to build and release cross-platform binaries. Here's how to create a new release:
+
+### Release Process
+
+1. **Update the version number** in `deno.json`:
+   ```json
+   {
+     "version": "0.4.0"
+     // ... rest of config
+   }
+   ```
+
+2. **Commit the version bump:**
+   ```bash
+   git add deno.json
+   git commit -m "chore: bump version to 0.4.0"
+   git push
+   ```
+
+3. **Create and push a git tag:**
+   ```bash
+   # Create an annotated tag
+   git tag -a v0.4.0 -m "Release v0.4.0"
+
+   # Push the tag to trigger the release workflow
+   git push origin v0.4.0
+   ```
+
+4. **GitHub Actions will automatically:**
+   - Build cross-platform binaries for:
+     - macOS (Intel and Apple Silicon)
+     - Linux (x86_64 and ARM64)
+     - Windows (x86_64)
+   - Create a GitHub release with auto-generated release notes
+   - Attach all binary artifacts to the release
+
+### Supported Platforms
+
+The release workflow builds binaries for these platforms:
+
+| Platform | Architecture          | Binary Name                       |
+| -------- | --------------------- | --------------------------------- |
+| macOS    | Intel (x86_64)        | `obsidian-mcp-mac-x86_64`         |
+| macOS    | Apple Silicon (ARM64) | `obsidian-mcp-mac-arm64`          |
+| Linux    | x86_64                | `obsidian-mcp-linux-x86_64`       |
+| Linux    | ARM64                 | `obsidian-mcp-linux-arm64`        |
+| Windows  | x86_64                | `obsidian-mcp-windows-x86_64.exe` |
+
+### Manual Release (Emergency)
+
+If you need to trigger a release manually without creating a tag:
+
+1. Go to **Actions** → **Build and Release** in the GitHub repository
+2. Click **Run workflow**
+3. Select the branch and click **Run workflow**
+
+This will build the binaries but won't create a GitHub release (only tag-triggered runs create releases).
+
+### Version Synchronization
+
+**Important:** The version in `deno.json` must match the git tag version for the release to work correctly. The workflow extracts the version from `deno.json` and uses it for:
+
+- Binary filenames (`obsidian-mcp-*-v0.4.0.tar.gz`)
+- Artifact naming
+- Release naming
+
+### Pre-release Testing
+
+Before creating a release tag, test the build process locally:
+
+```bash
+# Test local builds for different platforms
+deno task build-mac
+deno task build-linux-x86_64
+deno task build-windows-x86_64
+
+# Test the binaries
+./build/obsidian-mcp-mac --help
+```
+
+### Release Notes
+
+GitHub automatically generates release notes based on:
+
+- Commit messages since the last release
+- Pull request titles and descriptions
+- Contributor information
+
+For better release notes, use conventional commit messages:
+
+- `feat:` for new features
+- `fix:` for bug fixes
+- `docs:` for documentation changes
+- `chore:` for maintenance tasks
 
 ## License
 
