@@ -4,6 +4,7 @@ import { z } from "zod";
 import { load } from "@std/dotenv";
 import { ObsidianApiClient } from "./obsidian-api-client.ts";
 import { parseCliArgs, showHelp, validateConfig } from "./cli.ts";
+import { TechnicalPlansManager } from "./technical-plans-manager.ts";
 
 // Load environment variables
 await load({ export: true });
@@ -35,6 +36,17 @@ const server = new McpServer({
 const apiClient = new ObsidianApiClient({
   apiUrl: config.obsidianApiUrl,
   apiKey: config.apiKey,
+});
+
+// Create Technical Plans Manager
+const techPlansManager = new TechnicalPlansManager(apiClient);
+
+// Initialize Technical Plans structure (async but non-blocking)
+techPlansManager.initializeStructure().catch((error) => {
+  console.error(
+    "Warning: Failed to initialize Technical Plans structure:",
+    error,
+  );
 });
 
 // Register tools
@@ -417,6 +429,235 @@ server.registerTool(
         content: [{
           type: "text",
           text: `Failed to append to active file: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+        }],
+        isError: true,
+      };
+    }
+  },
+);
+
+// Technical Plans Management Tools
+
+// Create technical plan
+server.registerTool(
+  "create_technical_plan",
+  {
+    description: "Create a new technical plan document in the Inbox",
+    inputSchema: {
+      content: z.string().describe("The content of the technical plan"),
+      project: z.string().describe("Project name"),
+      type: z.enum(["Architecture", "Implementation", "Research", "Design"])
+        .describe("Type of technical plan"),
+      priority: z.enum(["High", "Medium", "Low"])
+        .describe("Priority level")
+        .optional(),
+      source: z.enum(["Claude", "Claude Code", "Other LLM"])
+        .describe("Source LLM")
+        .optional(),
+    },
+  },
+  async ({ content, project, type, priority, source }) => {
+    try {
+      const filepath = await techPlansManager.createTechnicalPlan(content, {
+        project,
+        type,
+        priority,
+        source,
+      });
+      return {
+        content: [{
+          type: "text",
+          text: `Successfully created technical plan: ${filepath}`,
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to create technical plan: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+        }],
+        isError: true,
+      };
+    }
+  },
+);
+
+// Mark plan as reviewed
+server.registerTool(
+  "mark_plan_reviewed",
+  {
+    description:
+      "Mark a technical plan as reviewed (moves from Inbox to Reviewed)",
+    inputSchema: {
+      filename: z.string().describe("Filename of the plan to mark as reviewed"),
+    },
+  },
+  async ({ filename }) => {
+    try {
+      await techPlansManager.markReviewed(filename);
+      return {
+        content: [{
+          type: "text",
+          text: `Successfully marked ${filename} as reviewed`,
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to mark plan as reviewed: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+        }],
+        isError: true,
+      };
+    }
+  },
+);
+
+// Archive plan
+server.registerTool(
+  "archive_plan",
+  {
+    description: "Archive a technical plan",
+    inputSchema: {
+      filename: z.string().describe("Filename of the plan to archive"),
+    },
+  },
+  async ({ filename }) => {
+    try {
+      await techPlansManager.archivePlan(filename);
+      return {
+        content: [{
+          type: "text",
+          text: `Successfully archived ${filename}`,
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to archive plan: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+        }],
+        isError: true,
+      };
+    }
+  },
+);
+
+// List technical plans
+server.registerTool(
+  "list_technical_plans",
+  {
+    description: "List technical plans, optionally filtered by folder",
+    inputSchema: {
+      folder: z.enum(["inbox", "reviewed", "archive"])
+        .describe("Specific folder to list plans from")
+        .optional(),
+    },
+  },
+  async ({ folder }) => {
+    try {
+      const plans = await techPlansManager.listTechnicalPlans(folder);
+      const plansList = plans.map((p) => {
+        const filename = p.path.split("/").pop();
+        const status = p.path.includes("/Inbox/")
+          ? "Inbox"
+          : p.path.includes("/Reviewed/")
+          ? "Reviewed"
+          : "Archive";
+        return `[${status}] ${filename}${
+          p.metadata ? ` - ${p.metadata.project} (${p.metadata.type})` : ""
+        }`;
+      }).join("\n");
+
+      return {
+        content: [{
+          type: "text",
+          text: plans.length > 0
+            ? `Technical Plans (${plans.length}):\n${plansList}`
+            : "No technical plans found",
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to list technical plans: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+        }],
+        isError: true,
+      };
+    }
+  },
+);
+
+// Get plan metadata
+server.registerTool(
+  "get_plan_metadata",
+  {
+    description: "Get metadata for a specific technical plan",
+    inputSchema: {
+      filename: z.string().describe("Filename of the plan"),
+    },
+  },
+  async ({ filename }) => {
+    try {
+      const metadata = await techPlansManager.getPlanMetadata(filename);
+      return {
+        content: [{
+          type: "text",
+          text: metadata
+            ? JSON.stringify(metadata, null, 2)
+            : "No metadata found for this plan",
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to get plan metadata: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+        }],
+        isError: true,
+      };
+    }
+  },
+);
+
+// Archive old reviewed plans
+server.registerTool(
+  "archive_old_reviewed_plans",
+  {
+    description: "Archive reviewed plans older than specified days",
+    inputSchema: {
+      daysOld: z.number()
+        .min(1)
+        .describe("Number of days old to consider for archiving"),
+    },
+  },
+  async ({ daysOld }) => {
+    try {
+      const count = await techPlansManager.archiveOldReviewed(daysOld);
+      return {
+        content: [{
+          type: "text",
+          text: `Successfully archived ${count} old reviewed plans`,
+        }],
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text",
+          text: `Failed to archive old plans: ${
             error instanceof Error ? error.message : "Unknown error"
           }`,
         }],
