@@ -265,8 +265,6 @@ export class TechnicalPlansManager {
   async listTechnicalPlans(
     folder?: "inbox" | "reviewed" | "archive",
   ): Promise<FileInfo[]> {
-    const allFiles = await this.apiClient.listFiles();
-
     const folders = folder
       ? [this.folders[folder]]
       : Object.values(this.folders);
@@ -274,22 +272,35 @@ export class TechnicalPlansManager {
     const technicalPlans: FileInfo[] = [];
 
     for (const folderPath of folders) {
-      const folderFiles = allFiles.files.filter((f) =>
-        f.startsWith(folderPath + "/") && f.endsWith(".md")
-      );
+      try {
+        // Get directory contents by calling getFile on directory path
+        const dirContentStr = await this.apiClient.getFile(folderPath + "/");
+        const dirContent = JSON.parse(dirContentStr);
+        
+        if (dirContent.files && Array.isArray(dirContent.files)) {
+          // Filter for .md files (exclude .gitkeep and other non-markdown files)
+          const mdFiles = dirContent.files.filter((filename: string) => 
+            filename.endsWith(".md")
+          );
 
-      for (const filepath of folderFiles) {
-        try {
-          const content = await this.apiClient.getFile(filepath);
-          const { metadata } = this.parseFrontmatter(content);
-          technicalPlans.push({
-            path: filepath,
-            metadata: metadata as TechnicalPlanMetadata,
-          });
-        } catch {
-          // If we can't read the file, still include it without metadata
-          technicalPlans.push({ path: filepath });
+          for (const filename of mdFiles) {
+            const filepath = `${folderPath}/${filename}`;
+            try {
+              const content = await this.apiClient.getFile(filepath);
+              const { metadata } = this.parseFrontmatter(content);
+              technicalPlans.push({
+                path: filepath,
+                metadata: metadata as TechnicalPlanMetadata,
+              });
+            } catch {
+              // If we can't read the file, still include it without metadata
+              technicalPlans.push({ path: filepath });
+            }
+          }
         }
+      } catch (error) {
+        // Directory doesn't exist or can't be read, skip it silently
+        // This is expected for directories that haven't been created yet
       }
     }
 

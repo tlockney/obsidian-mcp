@@ -12,6 +12,23 @@ class MockApiClient {
   }
 
   async getFile(path: string): Promise<string> {
+    // Handle directory requests that return JSON with file lists
+    if (path.endsWith("/")) {
+      const dirFiles = Array.from(this.files.keys())
+        .filter(filePath => {
+          const dirPathWithoutSlash = path.slice(0, -1);
+          return filePath.startsWith(dirPathWithoutSlash + "/") &&
+                 filePath !== dirPathWithoutSlash + "/" &&
+                 !filePath.substring(dirPathWithoutSlash.length + 1).includes("/");
+        })
+        .map(filePath => {
+          const dirPathWithoutSlash = path.slice(0, -1);
+          return filePath.substring(dirPathWithoutSlash.length + 1);
+        });
+
+      return JSON.stringify({ files: dirFiles });
+    }
+
     const content = this.files.get(path);
     if (!content) {
       throw new Error(`File not found: ${path}`);
