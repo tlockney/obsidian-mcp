@@ -55,7 +55,9 @@ class MockApiClient implements Partial<ObsidianApiClient> {
 
 Deno.test("TechnicalPlansManager - createTechnicalPlan", async () => {
   const mockClient = new MockApiClient();
-  const manager = new TechnicalPlansManager(mockClient as unknown as ObsidianApiClient);
+  const manager = new TechnicalPlansManager(
+    mockClient as unknown as ObsidianApiClient,
+  );
 
   const content = "# Test Plan\nThis is a test technical plan.";
   const metadata = {
@@ -82,7 +84,9 @@ Deno.test("TechnicalPlansManager - createTechnicalPlan", async () => {
 
 Deno.test("TechnicalPlansManager - initializeStructure", async () => {
   const mockClient = new MockApiClient();
-  const manager = new TechnicalPlansManager(mockClient as unknown as ObsidianApiClient);
+  const manager = new TechnicalPlansManager(
+    mockClient as unknown as ObsidianApiClient,
+  );
 
   await manager.initializeStructure();
 
@@ -97,7 +101,9 @@ Deno.test("TechnicalPlansManager - initializeStructure", async () => {
 
 Deno.test("TechnicalPlansManager - markReviewed", async () => {
   const mockClient = new MockApiClient();
-  const manager = new TechnicalPlansManager(mockClient as unknown as ObsidianApiClient);
+  const manager = new TechnicalPlansManager(
+    mockClient as unknown as ObsidianApiClient,
+  );
 
   // Create a test file in inbox first
   const testContent = `---
@@ -133,7 +139,9 @@ This is a test.`;
 
 Deno.test("TechnicalPlansManager - listTechnicalPlans", async () => {
   const mockClient = new MockApiClient();
-  const manager = new TechnicalPlansManager(mockClient as unknown as ObsidianApiClient);
+  const manager = new TechnicalPlansManager(
+    mockClient as unknown as ObsidianApiClient,
+  );
 
   // Create test files in different folders
   await mockClient.createOrUpdateFile(

@@ -1,324 +1,152 @@
 #!/bin/bash
 set -e
 
-# Obsidian MCP Server Multi-Platform Installation Script
-# Downloads the latest release for the detected platform and installs it
-
+# Obsidian MCP Server Installation Script
 REPO="tlockney/obsidian-mcp"
-BINARY_NAME="obsidian-mcp"
+INSTALL_DIR="$HOME/.local/bin"
 
-# Set platform-specific defaults
-case "$(uname -s)" in
-    CYGWIN*|MINGW*|MSYS*)
-        INSTALL_DIR="$HOME/bin"
-        ;;
-    *)
-        INSTALL_DIR="$HOME/.local/bin"
-        ;;
-esac
-
-# Colors for output
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-echo -e "${BLUE}🔽 Obsidian MCP Server - Multi-Platform Installation${NC}"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo -e "${BLUE}🔽 Installing Obsidian MCP Server${NC}"
 
 # Detect platform and architecture
 detect_platform() {
-    local os
-    local arch
-    local platform
-
-    os=$(uname -s)
-    arch=$(uname -m)
+    local os=$(uname -s)
+    local arch=$(uname -m)
 
     case "$os" in
         "Linux")
             case "$arch" in
-                "x86_64"|"amd64")
-                    platform="linux-x86_64"
-                    ;;
-                "arm64"|"aarch64")
-                    platform="linux-arm64"
-                    ;;
-                *)
-                    echo -e "${RED}❌ Error: Unsupported Linux architecture: $arch${NC}"
-                    exit 1
-                    ;;
+                "x86_64"|"amd64") echo "linux-x86_64" ;;
+                "arm64"|"aarch64") echo "linux-arm64" ;;
+                *) echo "Error: Unsupported Linux architecture: $arch" >&2; exit 1 ;;
             esac
             ;;
         "Darwin")
             case "$arch" in
-                "arm64")
-                    platform="mac-arm64"
-                    ;;
-                "x86_64")
-                    platform="mac-x86_64"
-                    ;;
-                *)
-                    echo -e "${RED}❌ Error: Unsupported macOS architecture: $arch${NC}"
-                    exit 1
-                    ;;
+                "arm64") echo "mac-arm64" ;;
+                "x86_64") echo "mac-x86_64" ;;
+                *) echo "Error: Unsupported macOS architecture: $arch" >&2; exit 1 ;;
             esac
             ;;
         CYGWIN*|MINGW*|MSYS*)
             case "$arch" in
-                "x86_64"|"amd64")
-                    platform="windows-x86_64"
-                    BINARY_NAME="obsidian-mcp.exe"
-                    ;;
-                *)
-                    echo -e "${RED}❌ Error: Unsupported Windows architecture: $arch${NC}"
-                    exit 1
-                    ;;
+                "x86_64"|"amd64") echo "windows-x86_64" ;;
+                *) echo "Error: Unsupported Windows architecture: $arch" >&2; exit 1 ;;
             esac
             ;;
         *)
-            echo -e "${RED}❌ Error: Unsupported operating system: $os${NC}"
-            echo "Supported platforms:"
-            echo "  - Linux (x86_64, ARM64)"
-            echo "  - macOS (Intel x86_64, Apple Silicon ARM64)"
-            echo "  - Windows (x86_64)"
+            echo "Error: Unsupported OS: $os" >&2
+            echo "Supported: Linux (x86_64, ARM64), macOS (Intel, Apple Silicon), Windows (x86_64)" >&2
             exit 1
             ;;
     esac
-
-    echo "$platform"
 }
 
 PLATFORM=$(detect_platform)
+echo -e "${GREEN}✓ Detected platform: $PLATFORM${NC}"
 
+# Set platform-specific variables
 case "$PLATFORM" in
-    "mac-arm64")
-        echo -e "${GREEN}✓ Detected: Apple Silicon Mac (ARM64)${NC}"
+    linux-*) ARCHIVE_EXT="tar.gz" ;;
+    windows-*)
+        ARCHIVE_EXT="zip"
+        INSTALL_DIR="$HOME/bin"
         ;;
-    "mac-x86_64")
-        echo -e "${GREEN}✓ Detected: Intel Mac (x86_64)${NC}"
-        ;;
-    "linux-x86_64")
-        echo -e "${GREEN}✓ Detected: Linux x86_64${NC}"
-        ;;
-    "linux-arm64")
-        echo -e "${GREEN}✓ Detected: Linux ARM64${NC}"
-        ;;
-    "windows-x86_64")
-        echo -e "${GREEN}✓ Detected: Windows x86_64${NC}"
-        ;;
+    *) ARCHIVE_EXT="zip" ;;
 esac
 
-# Create install directory if it doesn't exist
+# Binary name includes platform suffix
+BINARY_NAME="obsidian-mcp-$PLATFORM"
+if [[ "$PLATFORM" == "windows-"* ]]; then
+    BINARY_NAME="$BINARY_NAME.exe"
+fi
+
+# Create install directory
 mkdir -p "$INSTALL_DIR"
 
-# Get the latest release information
-echo -e "${BLUE}📡 Fetching latest release information...${NC}"
-RELEASE_INFO=$(curl -s "https://api.github.com/repos/$REPO/releases/latest")
-
+# Get latest release
+echo -e "${BLUE}📡 Fetching latest release...${NC}"
+RELEASE_INFO=$(curl -s --max-time 10 "https://api.github.com/repos/$REPO/releases/latest")
 if [[ $? -ne 0 ]]; then
-    echo -e "${RED}❌ Error: Failed to fetch release information${NC}"
+    echo -e "${RED}❌ Failed to fetch release information${NC}"
     exit 1
 fi
 
-# Extract version and download URL
 VERSION=$(echo "$RELEASE_INFO" | grep '"tag_name":' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
-
-# Determine archive extension based on platform
-case "$PLATFORM" in
-    linux-*)
-        ARCHIVE_EXT="tar.gz"
-        ;;
-    *)
-        ARCHIVE_EXT="zip"
-        ;;
-esac
-
-DOWNLOAD_URL=$(echo "$RELEASE_INFO" | grep '"browser_download_url":' | grep "obsidian-mcp-$PLATFORM" | grep "\.$ARCHIVE_EXT" | head -1 | sed -E 's/.*"browser_download_url": *"([^"]+)".*/\1/')
+DOWNLOAD_URL=$(echo "$RELEASE_INFO" | grep '"browser_download_url":' | grep "obsidian-mcp-$PLATFORM.*\.$ARCHIVE_EXT" | head -1 | sed -E 's/.*"browser_download_url": *"([^"]+)".*/\1/')
 
 if [[ -z "$VERSION" ]] || [[ -z "$DOWNLOAD_URL" ]]; then
-    echo -e "${RED}❌ Error: Could not find release information for $PLATFORM${NC}"
-    echo "Looking for: obsidian-mcp-$PLATFORM.*.$ARCHIVE_EXT"
-    echo "Available assets:"
-    echo "$RELEASE_INFO" | grep '"name":' | grep -E 'obsidian-mcp.*\.(zip|tar\.gz)' || echo "No matching archives found"
+    echo -e "${RED}❌ Could not find release for $PLATFORM${NC}"
     exit 1
 fi
 
 echo -e "${GREEN}✓ Found version: $VERSION${NC}"
-echo -e "${GREEN}✓ Download URL: $DOWNLOAD_URL${NC}"
 
-# Check if binary already exists and get its version
-EXISTING_VERSION=""
-if [[ -f "$INSTALL_DIR/$BINARY_NAME" ]]; then
-    EXISTING_VERSION=$("$INSTALL_DIR/$BINARY_NAME" --version 2>/dev/null | head -1 || echo "unknown")
-    echo -e "${YELLOW}⚠️  Existing installation found: $EXISTING_VERSION${NC}"
-fi
-
-# Download the release
+# Download and extract
 TEMP_DIR=$(mktemp -d)
-ARCHIVE_NAME="obsidian-mcp-$PLATFORM-$VERSION.$ARCHIVE_EXT"
-TEMP_FILE="$TEMP_DIR/$ARCHIVE_NAME"
+TEMP_FILE="$TEMP_DIR/release.$ARCHIVE_EXT"
 
-echo -e "${BLUE}📦 Downloading $ARCHIVE_NAME...${NC}"
-curl -L -o "$TEMP_FILE" "$DOWNLOAD_URL"
-
+echo -e "${BLUE}📦 Downloading release...${NC}"
+curl -L --max-time 60 -o "$TEMP_FILE" "$DOWNLOAD_URL"
 if [[ $? -ne 0 ]]; then
-    echo -e "${RED}❌ Error: Download failed${NC}"
+    echo -e "${RED}❌ Download failed${NC}"
     rm -rf "$TEMP_DIR"
     exit 1
 fi
 
-# Extract the binary
-echo -e "${BLUE}📂 Extracting binary...${NC}"
+echo -e "${BLUE}📂 Extracting...${NC}"
 cd "$TEMP_DIR"
-
 case "$ARCHIVE_EXT" in
-    "zip")
-        unzip -q "$ARCHIVE_NAME"
-        ;;
-    "tar.gz")
-        tar -xzf "$ARCHIVE_NAME"
-        ;;
-    *)
-        echo -e "${RED}❌ Error: Unsupported archive format: $ARCHIVE_EXT${NC}"
-        rm -rf "$TEMP_DIR"
-        exit 1
-        ;;
+    "zip") unzip -q "release.$ARCHIVE_EXT" ;;
+    "tar.gz") tar -xzf "release.$ARCHIVE_EXT" ;;
 esac
 
-# Find the binary file (it might be named differently)
-# Try different patterns based on platform and binary naming conventions
+# Find the extracted binary
 EXTRACTED_BINARY=""
-
-# Define search patterns based on platform
-if [[ "$PLATFORM" == "windows-"* ]]; then
-    # Windows patterns - look for .exe files
-    for pattern in "obsidian-mcp-$PLATFORM.exe" "obsidian-mcp.exe" "obsidian-mcp-windows-*.exe"; do
-        EXTRACTED_BINARY=$(find . -name "$pattern" -type f | head -1)
-        if [[ -n "$EXTRACTED_BINARY" ]]; then
-            break
-        fi
-    done
-else
-    # Unix/Linux/macOS patterns - executable files without extension
-    for pattern in "obsidian-mcp-$PLATFORM" "obsidian-mcp" "obsidian-mcp-mac-*" "obsidian-mcp-linux-*"; do
-        EXTRACTED_BINARY=$(find . -name "$pattern" -type f ! -name "*.zip" ! -name "*.tar.gz" | head -1)
-        if [[ -n "$EXTRACTED_BINARY" ]]; then
-            break
-        fi
-    done
-fi
+for candidate in obsidian-mcp-$PLATFORM* obsidian-mcp*; do
+    if [[ -f "$candidate" && -x "$candidate" ]]; then
+        EXTRACTED_BINARY="$candidate"
+        break
+    fi
+done
 
 if [[ -z "$EXTRACTED_BINARY" ]]; then
-    echo -e "${RED}❌ Error: Could not find binary in archive${NC}"
-    echo "Archive contents:"
-    case "$ARCHIVE_EXT" in
-        "zip")
-            unzip -l "$ARCHIVE_NAME" || echo "Could not list zip contents"
-            ;;
-        "tar.gz")
-            tar -tzf "$ARCHIVE_NAME" || echo "Could not list tar contents"
-            ;;
-    esac
-    echo "Files found:"
-    find . -type f
+    echo -e "${RED}❌ Could not find binary in archive${NC}"
     rm -rf "$TEMP_DIR"
     exit 1
 fi
 
-echo -e "${GREEN}✓ Found binary: $EXTRACTED_BINARY${NC}"
-
-# Verify it's actually a binary
-if ! file "$EXTRACTED_BINARY" | grep -q "executable"; then
-    echo -e "${RED}❌ Error: Found file is not an executable binary${NC}"
-    file "$EXTRACTED_BINARY"
-    rm -rf "$TEMP_DIR"
-    exit 1
-fi
-
-# Install the binary
-echo -e "${BLUE}🚀 Installing to $INSTALL_DIR/$BINARY_NAME...${NC}"
+# Install binary
+echo -e "${BLUE}🚀 Installing to $INSTALL_DIR/$BINARY_NAME${NC}"
 cp "$EXTRACTED_BINARY" "$INSTALL_DIR/$BINARY_NAME"
 chmod +x "$INSTALL_DIR/$BINARY_NAME"
 
 # Cleanup
 rm -rf "$TEMP_DIR"
 
-# Verify installation
-if [[ -f "$INSTALL_DIR/$BINARY_NAME" ]]; then
-    echo -e "${GREEN}✅ Installation successful!${NC}"
+echo -e "${GREEN}✅ Installation successful!${NC}"
 
-    # Test the binary
-    echo -e "${BLUE}🔍 Testing installation...${NC}"
-    INSTALLED_VERSION=$("$INSTALL_DIR/$BINARY_NAME" --version 2>/dev/null | head -1 || echo "Could not get version")
-    echo -e "${GREEN}✓ Installed version: $INSTALLED_VERSION${NC}"
-
-    echo
-    echo -e "${BLUE}📋 Next Steps:${NC}"
-    echo "━━━━━━━━━━━━━━━"
-
-    # Platform-specific PATH instructions
+# Check PATH
+if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
+    echo -e "${YELLOW}⚠️  $INSTALL_DIR is not in your PATH${NC}"
     case "$(uname -s)" in
-        CYGWIN*|MINGW*|MSYS*)
-            # Windows PATH check
-            if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
-                echo -e "${YELLOW}⚠️  ~/bin is not in your PATH${NC}"
-                echo "Add this to your shell profile (~/.bashrc or ~/.zshrc):"
-                echo
-                echo -e "${GREEN}export PATH=\"\$HOME/bin:\$PATH\"${NC}"
-                echo
-                echo "Or use the full path:"
-                echo -e "${GREEN}$INSTALL_DIR/$BINARY_NAME --help${NC}"
-            else
-                echo -e "${GREEN}✓ ~/bin is in your PATH${NC}"
-                echo "You can now run: ${GREEN}$BINARY_NAME --help${NC}"
-            fi
-            ;;
-        "Darwin")
-            # macOS PATH check
-            if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-                echo -e "${YELLOW}⚠️  ~/.local/bin is not in your PATH${NC}"
-                echo "Add this to your shell profile (~/.zshrc):"
-                echo
-                echo -e "${GREEN}export PATH=\"\$HOME/.local/bin:\$PATH\"${NC}"
-                echo
-                echo "Then reload your shell or run: source ~/.zshrc"
-                echo
-                echo "Alternative: Run directly with full path:"
-                echo -e "${GREEN}$INSTALL_DIR/$BINARY_NAME --help${NC}"
-            else
-                echo -e "${GREEN}✓ ~/.local/bin is in your PATH${NC}"
-                echo "You can now run: ${GREEN}$BINARY_NAME --help${NC}"
-            fi
-            ;;
-        "Linux")
-            # Linux PATH check
-            if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-                echo -e "${YELLOW}⚠️  ~/.local/bin is not in your PATH${NC}"
-                echo "Add this to your shell profile (~/.bashrc or ~/.zshrc):"
-                echo
-                echo -e "${GREEN}export PATH=\"\$HOME/.local/bin:\$PATH\"${NC}"
-                echo
-                echo "Then reload your shell or run: source ~/.bashrc"
-                echo
-                echo "Alternative: Run directly with full path:"
-                echo -e "${GREEN}$INSTALL_DIR/$BINARY_NAME --help${NC}"
-            else
-                echo -e "${GREEN}✓ ~/.local/bin is in your PATH${NC}"
-                echo "You can now run: ${GREEN}$BINARY_NAME --help${NC}"
-            fi
-            ;;
+        "Darwin") SHELL_RC="~/.zshrc" ;;
+        CYGWIN*|MINGW*|MSYS*) SHELL_RC="~/.bashrc" ;;
+        *) SHELL_RC="~/.bashrc" ;;
     esac
-
-    echo
-    echo -e "${BLUE}🧪 Quick Test:${NC}"
-    echo -e "${GREEN}$BINARY_NAME --help${NC}"
-    echo
-    echo -e "${BLUE}📖 Documentation:${NC}"
-    echo "https://github.com/$REPO#setup-guide"
-
+    echo "Add to your $SHELL_RC:"
+    echo -e "${GREEN}export PATH=\"$INSTALL_DIR:\$PATH\"${NC}"
+    echo "Then run: source $SHELL_RC"
 else
-    echo -e "${RED}❌ Installation failed${NC}"
-    exit 1
+    echo -e "${GREEN}✓ Ready to use: ${BINARY_NAME}${NC}"
 fi
+
+echo
+echo -e "${BLUE}Test installation:${NC}"
+echo "$INSTALL_DIR/$BINARY_NAME --help"
