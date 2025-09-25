@@ -189,7 +189,7 @@ async function main(): Promise<void> {
 
     // Run tests to ensure everything still works
     console.log("🧪 Running tests...");
-    await runCommand("deno", ["test"]);
+    await runCommand("deno", ["task", "test"]);
     console.log("✓ Tests passed");
 
     // Run formatting and linting
