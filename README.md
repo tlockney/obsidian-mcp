@@ -4,6 +4,8 @@ A Model Context Protocol (MCP) server that enables AI models to interact with Ob
 
 There are other implementations of this that follow a very similar pattern. I built this solely to scratch an itch: as much as anything, I just wanted to see what building an MCP looked like. I also wanted to use Deno for this task. A nice side-effect is that it can provide binary builds.
 
+As I've used this, I also found myself following a certain pattern with LLM's: I'd work through some scenario or challenge with them and then have a markdown plan produced for review. This might even end up being fed into another LLM for implementation. More and more, I found myself copying these documents to Obsidian for review and editing. So this MCP has evolved to support that workflow. It has become very particular to my usage and likely isn't of much value to anyone else other than as a curiosity.
+
 ## Quick Start
 
 1. **Install Prerequisites:**

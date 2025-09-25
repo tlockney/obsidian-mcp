@@ -6,6 +6,7 @@
     "test": "deno test --allow-net --allow-env --allow-read",
     "fmt": "deno fmt",
     "lint": "deno lint",
+    "version-bump": "deno run --allow-read --allow-write --allow-run scripts/version-bump.ts",
     "build-mac": "deno compile --allow-net --allow-env --allow-read --allow-write --allow-run --target aarch64-apple-darwin --output ./build/obsidian-mcp-mac --no-check src/main.ts",
     "build-linux-x86_64": "deno compile --allow-net --allow-env --allow-read --allow-write --allow-run --target x86_64-unknown-linux-gnu --output ./build/obsidian-mcp-linux-x86_64 --no-check src/main.ts",
     "build-linux-ARM64": "deno compile --allow-net --allow-env --allow-read --allow-write --allow-run --target aarch64-unknown-linux-gnu --output ./build/obsidian-mcp-linux-ARM64 --no-check src/main.ts",

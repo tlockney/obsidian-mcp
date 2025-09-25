@@ -276,10 +276,10 @@ export class TechnicalPlansManager {
         // Get directory contents by calling getFile on directory path
         const dirContentStr = await this.apiClient.getFile(folderPath + "/");
         const dirContent = JSON.parse(dirContentStr);
-        
+
         if (dirContent.files && Array.isArray(dirContent.files)) {
           // Filter for .md files (exclude .gitkeep and other non-markdown files)
-          const mdFiles = dirContent.files.filter((filename: string) => 
+          const mdFiles = dirContent.files.filter((filename: string) =>
             filename.endsWith(".md")
           );
 

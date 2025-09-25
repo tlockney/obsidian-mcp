@@ -27,7 +27,7 @@ const config = validateConfig({
 // Create the MCP server instance
 const server = new McpServer({
   name: "obsidian-mcp",
-  version: "0.2.0",
+  version: "0.3.2",
   description:
     "MCP server for interacting with Obsidian through the Local REST API",
 });
