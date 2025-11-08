@@ -503,6 +503,234 @@ The key insight from Anthropic is that **domain-specific tools should still foll
 
 **Benefits**: Reduced round-trips for multi-file operations
 
+## Architectural Alternatives: Beyond the REST API
+
+The current implementation relies on the Obsidian Local REST API plugin as an intermediary. This architectural decision has significant implications for how efficiently we can implement the Anthropic recommendations. It's worth exploring alternative approaches:
+
+### Option 1: Continue with REST API Extension (Current)
+
+**How it works**: MCP server → HTTP → Obsidian Local REST API plugin → Obsidian
+
+**Strengths**:
+- ✅ Access to active note operations
+- ✅ Can execute Obsidian commands (graph view, daily notes, etc.)
+- ✅ Works with live Obsidian state
+- ✅ No need to parse vault structure or understand Obsidian internals
+- ✅ Already implemented and working
+
+**Limitations for Anthropic recommendations**:
+- ❌ **Network overhead**: Every operation requires HTTP round-trip
+- ❌ **Limited filtering**: Can't efficiently filter/search before returning data
+- ❌ **No caching**: Can't cache metadata or build indexes
+- ❌ **API constraints**: Limited by what the REST API exposes
+- ❌ **Inefficient for batch operations**: Each file operation is separate HTTP call
+- ❌ **No custom search**: Can't implement efficient search with snippets
+
+**Token efficiency**: Medium - Returns full data, limited filtering capabilities
+
+**Best for**: Users who need integration with live Obsidian state (active note, commands)
+
+### Option 2: New Native Obsidian Extension
+
+**How it works**: MCP protocol natively implemented as Obsidian plugin
+
+**Strengths**:
+- ✅ Direct access to all Obsidian APIs
+- ✅ No network overhead
+- ✅ Can access workspace state, settings, plugins
+- ✅ Could implement sophisticated caching and indexing
+- ✅ Better error handling and validation
+- ✅ Can hook into Obsidian events (file changes, etc.)
+
+**Limitations**:
+- ❌ **Development complexity**: Need to learn Obsidian plugin API (TypeScript)
+- ❌ **Maintenance burden**: Plugin updates, compatibility with Obsidian versions
+- ❌ **Still requires Obsidian running**: No standalone mode
+- ❌ **Distribution**: Users must install plugin through Community Plugins
+
+**Token efficiency**: High - Can implement all Anthropic recommendations efficiently
+
+**Implementation effort**: Medium-High (2-4 weeks)
+
+**Example use cases enabled**:
+- Efficient metadata-only queries without file reads
+- Built-in search index with snippet extraction
+- Batch operations with transactions
+- Real-time vault monitoring and incremental updates
+
+### Option 3: Standalone Filesystem Server
+
+**How it works**: MCP server accesses vault files directly (no Obsidian required)
+
+**Strengths**:
+- ✅ **No Obsidian dependency**: Works with closed vaults
+- ✅ **Maximum performance**: Direct file system access
+- ✅ **Sophisticated indexing**: Can build and maintain search indexes
+- ✅ **Efficient filtering**: Process files before returning data
+- ✅ **Caching and metadata**: Can maintain metadata database
+- ✅ **Batch operations**: Efficient multi-file operations
+- ✅ **Best for Anthropic patterns**: Full control over data processing
+
+**Limitations**:
+- ❌ **No active note**: Can't access currently open note
+- ❌ **No command execution**: Can't trigger Obsidian commands
+- ❌ **Must parse vault structure**: Need to understand Obsidian format
+- ❌ **Sync conflicts**: If Obsidian is also running
+- ❌ **Plugin-specific features**: Can't access Dataview, graph, etc.
+
+**Token efficiency**: Very High - Can implement all recommendations optimally
+
+**Implementation effort**: Medium (1-2 weeks for basic version)
+
+**Key capabilities enabled**:
+```typescript
+// Example: Efficient metadata-only operation
+const metadata = await vaultIndex.getFileMetadata("path/to/note.md");
+// No file read required - served from index
+
+// Example: Search with snippets (processed locally)
+const results = await vaultIndex.search("quantum computing", {
+  returnFormat: "snippets",
+  contextLines: 2,
+  maxResults: 10
+});
+// Only returns relevant excerpts, not full files
+
+// Example: Batch operations with rollback
+const batch = vault.beginTransaction();
+batch.updateFile("note1.md", content1);
+batch.deleteFile("note2.md");
+batch.createFile("note3.md", content3);
+await batch.commit(); // or rollback() on error
+```
+
+**Technology options**:
+- **SQLite**: For metadata index (tags, frontmatter, links, backlinks)
+- **File watchers**: Detect changes and update index
+- **Markdown parser**: Extract frontmatter, links, headings
+- **Full-text search**: Using FTS5 or similar
+
+### Option 4: Hybrid Approach
+
+**How it works**: Standalone server for read operations + REST API for live features
+
+**Strengths**:
+- ✅ **Best of both worlds**: Fast reads, live Obsidian integration when needed
+- ✅ **Graceful degradation**: Works without Obsidian, enhanced when running
+- ✅ **Optimal token efficiency**: Direct file access for most operations
+- ✅ **Maintains compatibility**: Can still use active note and commands
+
+**Architecture**:
+```typescript
+class ObsidianMCPServer {
+  private fileSystemVault: DirectVaultAccess;  // For reads, search, metadata
+  private restApiClient?: ObsidianApiClient;    // For active note, commands
+
+  async listFiles(filter?: string) {
+    // Use filesystem (faster, can filter locally)
+    return this.fileSystemVault.listFiles(filter);
+  }
+
+  async getActiveNote() {
+    // Requires Obsidian running
+    if (!this.restApiClient) {
+      throw new Error("Requires Obsidian with REST API plugin");
+    }
+    return this.restApiClient.getActiveFile();
+  }
+
+  async searchFiles(query: string) {
+    // Use indexed search (much faster)
+    return this.fileSystemVault.search(query);
+  }
+}
+```
+
+**Implementation effort**: Medium-High (3-4 weeks)
+
+**Token efficiency**: Very High for most operations, fallback to Medium for live features
+
+### Comparison Matrix
+
+| Feature | REST API | Native Plugin | Standalone | Hybrid |
+|---------|----------|---------------|------------|--------|
+| **Performance** | Medium | High | Very High | Very High |
+| **Token Efficiency** | Medium | High | Very High | Very High |
+| **Active Note** | ✅ | ✅ | ❌ | ✅* |
+| **Commands** | ✅ | ✅ | ❌ | ✅* |
+| **Offline Mode** | ❌ | ❌ | ✅ | ✅ |
+| **Search/Filter** | Limited | Good | Excellent | Excellent |
+| **Metadata Only** | ❌ | ✅ | ✅ | ✅ |
+| **Batch Ops** | Poor | Good | Excellent | Excellent |
+| **Setup Complexity** | Low | Medium | Low | Medium |
+| **Maintenance** | Low | Medium | Low | Medium |
+| **Anthropic Alignment** | Low | Medium | High | High |
+
+*When Obsidian is running
+
+### Recommendation
+
+**Short term (Phase 1-2)**: Continue with REST API, but add:
+- Client-side caching of file lists and metadata
+- Request batching where possible
+- Filtering parameters to reduce data transfer
+
+**Medium term (Phase 3-4)**: Implement **Hybrid Approach**
+- Build standalone filesystem vault access with indexing
+- Maintain REST API client for live features
+- Tools automatically use best available backend
+- Significant token efficiency gains for most operations
+
+**Long term**: Consider **Native Plugin**
+- If Hybrid proves valuable, consider native plugin for even tighter integration
+- Would enable real-time vault monitoring and incremental updates
+- Best developer experience and performance
+
+### Implementation Roadmap for Hybrid
+
+**Stage 1: Basic Filesystem Access** (Week 1)
+- Direct file read/write operations
+- Frontmatter parsing
+- File listing with glob patterns
+- Metadata extraction (tags, links, dates)
+
+**Stage 2: Indexing** (Week 2)
+- SQLite metadata index
+- Full-text search with FTS5
+- File watcher for automatic index updates
+- Link graph and backlinks
+
+**Stage 3: Integration** (Week 3)
+- Refactor tools to use filesystem backend
+- Maintain REST API client for active note/commands
+- Automatic fallback logic
+- Performance benchmarking
+
+**Stage 4: Advanced Features** (Week 4)
+- Batch operations with transactions
+- Advanced search with snippets
+- Metadata-only queries
+- Caching and optimization
+
+### Code Execution Consideration
+
+Interestingly, a **standalone filesystem approach** aligns better with the Anthropic code execution model:
+
+```typescript
+// Agent could write code like this:
+const vault = new ObsidianVault("/path/to/vault");
+
+// Efficient filtering and aggregation
+const techDocs = vault.listFiles("Technical Plans/Inbox/*.md")
+  .filter(f => f.metadata.project === "obsidian-mcp")
+  .map(f => ({ title: f.title, age: f.daysOld }));
+
+// Process data locally, return summary
+return { count: techDocs.length, avgAge: average(techDocs.map(d => d.age)) };
+```
+
+This is more aligned with the "code execution" paradigm from the Anthropic blog than the current tool-calling approach.
+
 ## Success Metrics
 
 1. **Token Usage Reduction**: Measure token consumption before/after for common workflows
