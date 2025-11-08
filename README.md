@@ -13,7 +13,7 @@ As I've used this, I also found myself following a certain pattern with LLM's: I
 Install the latest release with a single command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tlockney/obsidian-mcp/main/install-local.sh | sh
+curl -fsSL https://raw.githubusercontent.com/tlockney/obsidian-mcp/main/install.sh | sh
 ```
 
 This will:
@@ -106,7 +106,7 @@ The Technical Plans Management tools provide automated workflow management for A
 Install with a single command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tlockney/obsidian-mcp/main/install-local.sh | sh
+curl -fsSL https://raw.githubusercontent.com/tlockney/obsidian-mcp/main/install.sh | sh
 ```
 
 This automatically handles platform detection, binary download, and macOS quarantine removal.

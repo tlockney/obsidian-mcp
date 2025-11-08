@@ -7,28 +7,28 @@ This directory contains a script to easily install the latest Obsidian MCP serve
 ### Option 1: One-liner (recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tlockney/obsidian-mcp/main/install-local.sh | bash
+curl -fsSL https://raw.githubusercontent.com/tlockney/obsidian-mcp/main/install.sh | sh
 ```
 
 ### Option 2: Download and run locally
 
 ```bash
 # Download the script
-curl -O https://raw.githubusercontent.com/tlockney/obsidian-mcp/main/install-local.sh
+curl -O https://raw.githubusercontent.com/tlockney/obsidian-mcp/main/install.sh
 
 # Make it executable and run
-chmod +x install-local.sh
-./install-local.sh
+chmod +x install.sh
+./install.sh
 ```
 
 ### Option 3: Use the local script (if you've cloned the repo)
 
 ```bash
 # Make the script executable (first time only)
-chmod +x install-local.sh
+chmod +x install.sh
 
 # Run the installation script
-./install-local.sh
+./install.sh
 ```
 
 ## What the Script Does
@@ -106,7 +106,7 @@ obsidian-mcp
 Simply run the installation script again to get the latest version:
 
 ```bash
-./install-local.sh
+./install.sh
 ```
 
 The script will detect if a version is already installed and update it.
