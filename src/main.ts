@@ -681,8 +681,10 @@ async function main() {
 
 // Run the server if this is the main module
 if (import.meta.main) {
-  main().catch((error) => {
+  try {
+    await main();
+  } catch (error) {
     console.error("Fatal error:", error);
     Deno.exit(1);
-  });
+  }
 }
