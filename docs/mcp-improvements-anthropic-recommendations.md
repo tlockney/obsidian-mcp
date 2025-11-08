@@ -259,6 +259,211 @@ This approach can consume significant tokens when working with large vaults or f
 **Effort**: Very High (weeks)
 **Impact**: Low (not aligned with use case)
 
+## Reconsidering Technical Plans Management Tools
+
+The current Technical Plans Management tools (`create_technical_plan`, `mark_plan_reviewed`, `archive_plan`, `list_technical_plans`, etc.) were designed for a specific workflow: capturing AI-generated plans, reviewing them, and archiving them. These tools could benefit significantly from the Anthropic recommendations:
+
+### Current State
+
+The technical plans tools are:
+- **Workflow-specific**: Tightly coupled to a particular folder structure (Inbox/Reviewed/Archive)
+- **Limited filtering**: `list_technical_plans` returns all plans or all in a folder
+- **No search**: Can't search plan content or metadata efficiently
+- **No aggregation**: Can't get summaries across plans
+
+### Potential Improvements
+
+#### 1. Consolidate into Generic Workflow Tools
+
+Instead of hardcoding the "technical plans" concept, create generic workflow management tools:
+
+**Replace**:
+- `create_technical_plan` → `create_workflow_item`
+- `mark_plan_reviewed` → `transition_workflow_item`
+- `archive_plan` → `transition_workflow_item`
+
+**With**:
+```typescript
+// Generic workflow tool
+{
+  tool: "manage_workflow",
+  config: {
+    basePath: "Technical Plans",
+    states: ["Inbox", "Reviewed", "Archive"],
+    requiredMetadata: ["project", "type", "priority"]
+  },
+  operation: "create" | "transition" | "list" | "search"
+}
+```
+
+**Benefits**:
+- Reusable for other workflows (e.g., "Meeting Notes", "Project Ideas")
+- Less tool proliferation
+- Agents can customize workflows
+
+#### 2. Add Context-Efficient Plan Summaries
+
+**Current**: `list_technical_plans` returns full file paths and metadata
+
+**Improved**:
+```typescript
+{
+  tool: "summarize_plans",
+  filters: {
+    folder: "inbox",
+    project: "obsidian-mcp",
+    daysOld: 7
+  },
+  groupBy: "project",
+  fields: ["title", "type", "created", "status"]
+}
+
+// Response: Summarized, grouped data
+{
+  summary: {
+    totalPlans: 15,
+    byProject: {
+      "obsidian-mcp": { count: 5, avgAge: 3 },
+      "other-project": { count: 10, avgAge: 14 }
+    },
+    byType: {
+      "Architecture": 8,
+      "Implementation": 7
+    }
+  },
+  plans: [
+    { title: "MCP Improvements", project: "obsidian-mcp", type: "Architecture", age: 2 },
+    ...
+  ]
+}
+```
+
+**Benefits**:
+- Reduced token usage (no full paths or unnecessary metadata)
+- Quick overview without fetching full plans
+- Easier decision-making
+
+#### 3. Add Cross-Plan Search and Analysis
+
+**New Tool**: `search_plans`
+
+```typescript
+{
+  tool: "search_plans",
+  query: "pagination filtering",
+  searchFields: ["content", "title", "metadata"],
+  returnFormat: "snippets" | "summaries" | "full",
+  maxResults: 10
+}
+
+// Response: Processed in execution environment
+{
+  totalMatches: 3,
+  plans: [
+    {
+      path: "Inbox/mcp-improvements.md",
+      relevance: 0.95,
+      snippets: ["Add filtering and pagination to list_files..."],
+      metadata: { project: "obsidian-mcp", type: "Architecture" }
+    }
+  ]
+}
+```
+
+**Benefits**:
+- Find related plans without fetching all content
+- Process search in execution environment
+- Return only relevant excerpts
+
+#### 4. Batch Plan Operations
+
+**New Tool**: `batch_plan_operations`
+
+```typescript
+{
+  tool: "batch_plan_operations",
+  operations: [
+    { action: "transition", filename: "plan1.md", newState: "reviewed" },
+    { action: "transition", filename: "plan2.md", newState: "reviewed" },
+    { action: "archive", filter: { daysOld: 30, state: "reviewed" } }
+  ]
+}
+
+// Response: Summary only
+{
+  transitions: 2,
+  archived: 5,
+  errors: 0
+}
+```
+
+**Benefits**:
+- Bulk operations in single call
+- Reduced round-trips
+- Transaction-like semantics
+
+#### 5. Template-Based Plan Creation
+
+**Enhanced Tool**: `create_plan_from_template`
+
+```typescript
+{
+  tool: "create_plan_from_template",
+  template: "architecture-review",  // Predefined template
+  variables: {
+    project: "obsidian-mcp",
+    component: "file-operations"
+  },
+  content: "...",
+  autoPopulateSections: true  // Fill in boilerplate
+}
+```
+
+**Benefits**:
+- Consistent plan structure
+- Less redundant content in context
+- Faster plan creation
+
+### Alternative: Simplify or Remove?
+
+Given the Anthropic principles, another option is to **simplify dramatically** or **remove the specialized tools** entirely:
+
+**Option A: Use Generic File Tools + Conventions**
+
+Instead of specialized tools, use:
+- `put_file` with a naming convention: `Technical Plans/Inbox/{project}-{type}-{date}.md`
+- `list_files` with pattern: `Technical Plans/Inbox/*.md`
+- `search_files` to find plans
+- Frontmatter metadata for structured data
+
+Agents can implement the workflow logic in their own code/prompts.
+
+**Option B: Single Unified Tool**
+
+Collapse all technical plans tools into one:
+
+```typescript
+{
+  tool: "manage_technical_plans",
+  action: "create" | "list" | "search" | "transition" | "archive",
+  params: { /* action-specific parameters */ }
+}
+```
+
+### Recommendation
+
+**Progressive approach**:
+
+1. **Short term**: Add filtering/search to `list_technical_plans`, add `search_plans`
+2. **Medium term**: Consider generalizing to workflow management (reusable pattern)
+3. **Long term**: Evaluate if specialized tools add enough value vs. generic file tools + conventions
+
+The key insight from Anthropic is that **domain-specific tools should still follow context-efficient patterns**. Even specialized workflows benefit from:
+- Filtering and pagination
+- Metadata-only operations
+- Search with summaries
+- Batch operations
+
 ## Implementation Plan
 
 ### Phase 1: File Metadata & Enhanced Reading (Items 2, 3)
