@@ -8,6 +8,23 @@ As I've used this, I also found myself following a certain pattern with LLM's: I
 
 ## Quick Start
 
+### Quick Install (Recommended)
+
+Install the latest release with a single command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tlockney/obsidian-mcp/main/install-local.sh | sh
+```
+
+This will:
+- Auto-detect your platform (Linux, macOS, Windows)
+- Download the latest release binary
+- Install to `~/.local/bin` (or `~/bin` on Windows)
+- Remove macOS quarantine attributes automatically
+- Make the binary executable and ready to use
+
+### Manual Setup
+
 1. **Install Prerequisites:**
    - [Obsidian](https://obsidian.md/) with [Local REST API plugin](https://github.com/coddingtonbear/obsidian-local-rest-api)
    - [Deno 2.x](https://deno.com/) (for development) or use pre-built binaries
@@ -15,7 +32,7 @@ As I've used this, I also found myself following a certain pattern with LLM's: I
 2. **Download and Configure:**
 
    ```bash
-   git clone https://github.com/yourusername/obsidian-mcp.git
+   git clone https://github.com/tlockney/obsidian-mcp.git
    cd obsidian-mcp
    cp .env.example .env
    ```
@@ -84,7 +101,17 @@ The Technical Plans Management tools provide automated workflow management for A
 
 ### Step 2: Install the MCP Server
 
-**Option A: Use Pre-built Binary** (Recommended)
+**Option A: Quick Install Script** (Recommended)
+
+Install with a single command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tlockney/obsidian-mcp/main/install-local.sh | sh
+```
+
+This automatically handles platform detection, binary download, and macOS quarantine removal.
+
+**Option B: Manual Binary Installation**
 
 1. **Download the latest release for your platform from the [Releases page](https://github.com/tlockney/obsidian-mcp/releases)**
 
@@ -124,7 +151,7 @@ The Technical Plans Management tools provide automated workflow management for A
    - Scroll down to **Security** section
    - Click **"Allow Anyway"** next to the blocked app
 
-**Option B: Build from Source**
+**Option C: Build from Source**
 
 ```bash
 git clone https://github.com/yourusername/obsidian-mcp.git
@@ -181,11 +208,15 @@ OBSIDIAN_API_KEY=your-api-key
 
    **Option A: Using CLI Arguments** (Recommended)
 
+   If you used the quick install script, the binary will be at:
+   - macOS/Linux: `~/.local/bin/obsidian-mcp-{platform}`
+   - Windows: `~/bin/obsidian-mcp-windows-x86_64.exe`
+
    ```json
    {
      "mcpServers": {
        "obsidian": {
-         "command": "/path/to/obsidian-mcp-binary",
+         "command": "/Users/yourusername/.local/bin/obsidian-mcp-mac-arm64",
          "args": [
            "--api-url",
            "http://localhost:27123",
@@ -203,7 +234,7 @@ OBSIDIAN_API_KEY=your-api-key
    {
      "mcpServers": {
        "obsidian": {
-         "command": "/path/to/obsidian-mcp-binary",
+         "command": "/Users/yourusername/.local/bin/obsidian-mcp-mac-arm64",
          "env": {
            "OBSIDIAN_API_URL": "http://localhost:27123",
            "OBSIDIAN_API_KEY": "your-api-key"
