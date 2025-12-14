@@ -4,6 +4,7 @@ import { z } from "zod";
 import { load } from "@std/dotenv";
 import { ObsidianApiClient } from "./obsidian-api-client.ts";
 import { parseCliArgs, showHelp, validateConfig } from "./cli.ts";
+import { createToolHandlers } from "./tools.ts";
 
 // Load environment variables
 await load({ export: true });
@@ -37,6 +38,9 @@ const apiClient = new ObsidianApiClient({
   apiKey: config.apiKey,
 });
 
+// Create tool handlers using the shared implementation
+const handlers = createToolHandlers(apiClient);
+
 // Register tools
 
 // Connection test
@@ -46,28 +50,7 @@ server.registerTool(
     description: "Test connectivity to Obsidian",
     inputSchema: {},
   },
-  async () => {
-    try {
-      const status = await apiClient.getStatus();
-      return {
-        content: [{
-          type: "text",
-          text:
-            `Connected to Obsidian v${status.versions.obsidian} with ${status.manifest.name} v${status.manifest.version}`,
-        }],
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Failed to connect to Obsidian: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-        }],
-        isError: true,
-      };
-    }
-  },
+  handlers.ping,
 );
 
 // List files
@@ -77,29 +60,7 @@ server.registerTool(
     description: "List all files in the Obsidian vault",
     inputSchema: {},
   },
-  async () => {
-    try {
-      const response = await apiClient.listFiles();
-      return {
-        content: [{
-          type: "text",
-          text: `Found ${response.files.length} files:\n${
-            response.files.join("\n")
-          }`,
-        }],
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Failed to list files: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-        }],
-        isError: true,
-      };
-    }
-  },
+  handlers.listFiles,
 );
 
 // Get file content
@@ -111,27 +72,7 @@ server.registerTool(
       path: z.string().describe("Path to the file relative to vault root"),
     },
   },
-  async ({ path }) => {
-    try {
-      const content = await apiClient.getFile(path);
-      return {
-        content: [{
-          type: "text",
-          text: content,
-        }],
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Failed to get file: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-        }],
-        isError: true,
-      };
-    }
-  },
+  ({ path }: { path: string }) => handlers.getFile(path),
 );
 
 // Create or update file
@@ -146,27 +87,8 @@ server.registerTool(
       content: z.string().describe("Content of the file"),
     },
   },
-  async ({ path, content }) => {
-    try {
-      await apiClient.createOrUpdateFile(path, content);
-      return {
-        content: [{
-          type: "text",
-          text: `Successfully created/updated file: ${path}`,
-        }],
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Failed to create/update file: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-        }],
-        isError: true,
-      };
-    }
-  },
+  ({ path, content }: { path: string; content: string }) =>
+    handlers.putFile(path, content),
 );
 
 // Delete file
@@ -178,93 +100,7 @@ server.registerTool(
       path: z.string().describe("Path to the file to delete"),
     },
   },
-  async ({ path }) => {
-    try {
-      await apiClient.deleteFile(path);
-      return {
-        content: [{
-          type: "text",
-          text: `Successfully deleted file: ${path}`,
-        }],
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Failed to delete file: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-        }],
-        isError: true,
-      };
-    }
-  },
-);
-
-// List commands
-server.registerTool(
-  "list_commands",
-  {
-    description: "List all available Obsidian commands",
-    inputSchema: {},
-  },
-  async () => {
-    try {
-      const response = await apiClient.listCommands();
-      const commandList = response.commands
-        .map((cmd) => `${cmd.id}: ${cmd.name}`)
-        .join("\n");
-      return {
-        content: [{
-          type: "text",
-          text:
-            `Available commands (${response.commands.length}):\n${commandList}`,
-        }],
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Failed to list commands: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-        }],
-        isError: true,
-      };
-    }
-  },
-);
-
-// Execute command
-server.registerTool(
-  "execute_command",
-  {
-    description: "Execute an Obsidian command",
-    inputSchema: {
-      commandId: z.string().describe("The ID of the command to execute"),
-    },
-  },
-  async ({ commandId }) => {
-    try {
-      await apiClient.executeCommand(commandId);
-      return {
-        content: [{
-          type: "text",
-          text: `Successfully executed command: ${commandId}`,
-        }],
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Failed to execute command: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-        }],
-        isError: true,
-      };
-    }
-  },
+  ({ path }: { path: string }) => handlers.deleteFile(path),
 );
 
 // Patch file (partial update)
@@ -277,27 +113,31 @@ server.registerTool(
       content: z.string().describe("Content to patch/update in the file"),
     },
   },
-  async ({ path, content }) => {
-    try {
-      await apiClient.patchFile(path, content);
-      return {
-        content: [{
-          type: "text",
-          text: `Successfully patched file: ${path}`,
-        }],
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Failed to patch file: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-        }],
-        isError: true,
-      };
-    }
+  ({ path, content }: { path: string; content: string }) =>
+    handlers.patchFile(path, content),
+);
+
+// List commands
+server.registerTool(
+  "list_commands",
+  {
+    description: "List all available Obsidian commands",
+    inputSchema: {},
   },
+  handlers.listCommands,
+);
+
+// Execute command
+server.registerTool(
+  "execute_command",
+  {
+    description: "Execute an Obsidian command",
+    inputSchema: {
+      commandId: z.string().describe("The ID of the command to execute"),
+    },
+  },
+  ({ commandId }: { commandId: string }) =>
+    handlers.executeCommand(commandId),
 );
 
 // Get active file
@@ -307,27 +147,7 @@ server.registerTool(
     description: "Get the currently active note in Obsidian",
     inputSchema: {},
   },
-  async () => {
-    try {
-      const activeFile = await apiClient.getActiveFile();
-      return {
-        content: [{
-          type: "text",
-          text: JSON.stringify(activeFile, null, 2),
-        }],
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Failed to get active file: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-        }],
-        isError: true,
-      };
-    }
-  },
+  handlers.getActive,
 );
 
 // Update active file (replace)
@@ -339,27 +159,7 @@ server.registerTool(
       content: z.string().describe("New content for the active note"),
     },
   },
-  async ({ content }) => {
-    try {
-      await apiClient.updateActiveFile(content);
-      return {
-        content: [{
-          type: "text",
-          text: "Successfully replaced active file content",
-        }],
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Failed to replace active file: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-        }],
-        isError: true,
-      };
-    }
-  },
+  ({ content }: { content: string }) => handlers.replaceActive(content),
 );
 
 // Patch active file
@@ -371,27 +171,7 @@ server.registerTool(
       content: z.string().describe("Content to patch in the active note"),
     },
   },
-  async ({ content }) => {
-    try {
-      await apiClient.patchActiveFile(content);
-      return {
-        content: [{
-          type: "text",
-          text: "Successfully patched active file",
-        }],
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Failed to patch active file: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-        }],
-        isError: true,
-      };
-    }
-  },
+  ({ content }: { content: string }) => handlers.patchActive(content),
 );
 
 // Append to active file
@@ -403,27 +183,7 @@ server.registerTool(
       content: z.string().describe("Content to append to the active note"),
     },
   },
-  async ({ content }) => {
-    try {
-      await apiClient.appendToActiveFile(content);
-      return {
-        content: [{
-          type: "text",
-          text: "Successfully appended to active file",
-        }],
-      };
-    } catch (error) {
-      return {
-        content: [{
-          type: "text",
-          text: `Failed to append to active file: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-        }],
-        isError: true,
-      };
-    }
-  },
+  ({ content }: { content: string }) => handlers.appendActive(content),
 );
 
 // Main function to start the server

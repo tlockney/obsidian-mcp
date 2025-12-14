@@ -17,7 +17,7 @@
     "@std/cli": "jsr:@std/cli@1",
     "@std/encoding": "jsr:@std/encoding@1",
     "@std/dotenv": "jsr:@std/dotenv@0.225.3",
-    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@latest",
+    "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@1.17.0",
     "zod": "npm:zod@3.24.1"
   },
   "compilerOptions": {
