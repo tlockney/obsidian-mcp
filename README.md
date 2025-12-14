@@ -17,6 +17,7 @@ curl -fsSL https://raw.githubusercontent.com/tlockney/obsidian-mcp/main/install.
 ```
 
 This will:
+
 - Auto-detect your platform (Linux, macOS, Windows)
 - Download the latest release binary
 - Install to `~/.local/bin` (or `~/bin` on Windows)
