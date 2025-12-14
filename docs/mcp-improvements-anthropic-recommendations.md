@@ -7,6 +7,7 @@ This document outlines potential improvements to the Obsidian MCP server based o
 ## Current State Analysis
 
 The current implementation loads all 15+ tools upfront and returns complete, unfiltered data:
+
 - `list_files` returns all filenames without filtering
 - `get_file` returns entire file contents
 - No metadata-only operations
@@ -32,6 +33,7 @@ This approach can consume significant tokens when working with large vaults or f
 **Rationale**: Vaults can contain hundreds or thousands of files. Agents often need only a subset.
 
 **Implementation**:
+
 - Add optional parameters:
   - `pattern` (string): Glob pattern for filtering (e.g., `"*.md"`, `"Daily Notes/**"`)
   - `limit` (number): Maximum files to return
@@ -44,6 +46,7 @@ This approach can consume significant tokens when working with large vaults or f
   - File type breakdown
 
 **Example**:
+
 ```typescript
 // Instead of returning 1000 files
 { files: ["file1.md", "file2.md", ...] }
@@ -72,6 +75,7 @@ This approach can consume significant tokens when working with large vaults or f
 **Rationale**: Agents can make informed decisions before fetching full content.
 
 **Implementation**:
+
 - New tool: `get_file_metadata`
 - Parameters: `path` (string)
 - Returns:
@@ -82,6 +86,7 @@ This approach can consume significant tokens when working with large vaults or f
   - First N characters as preview (optional)
 
 **Example**:
+
 ```typescript
 {
   path: "Research/AI Models.md",
@@ -104,6 +109,7 @@ This approach can consume significant tokens when working with large vaults or f
 **Rationale**: Large documents consume excessive tokens when only a section is needed.
 
 **Implementation**:
+
 - Add optional parameters to existing `get_file`:
   - `startLine` (number): Start reading from this line
   - `endLine` (number): Stop reading at this line
@@ -112,6 +118,7 @@ This approach can consume significant tokens when working with large vaults or f
 - Return metadata about the full file along with partial content
 
 **Example**:
+
 ```typescript
 // Request
 { path: "Long Document.md", startLine: 100, maxLines: 50 }
@@ -137,6 +144,7 @@ This approach can consume significant tokens when working with large vaults or f
 **Rationale**: Process filtering in execution environment; return summaries instead of full content.
 
 **Implementation**:
+
 - New tool: `search_files`
 - Parameters:
   - `query` (string): Search term or regex
@@ -147,6 +155,7 @@ This approach can consume significant tokens when working with large vaults or f
   - `contextLines` (number): Lines before/after matches
 
 **Example**:
+
 ```typescript
 // Instead of: list all files -> get each file -> filter in LLM
 // Do: search in execution environment, return summaries
@@ -176,6 +185,7 @@ This approach can consume significant tokens when working with large vaults or f
 **Rationale**: Reduce round-trips and token usage for multiple operations.
 
 **Implementation**:
+
 - New tool: `batch_file_operations`
 - Parameters:
   - `operations` (array): List of operations to perform
@@ -185,6 +195,7 @@ This approach can consume significant tokens when working with large vaults or f
 - Returns summarized results
 
 **Example**:
+
 ```typescript
 // Request
 {
@@ -215,6 +226,7 @@ This approach can consume significant tokens when working with large vaults or f
 **Rationale**: Help agents understand vault organization efficiently.
 
 **Implementation**:
+
 - New tool: `get_directory_structure`
   - Parameters: `path` (optional), `maxDepth` (number), `includeFiles` (boolean)
   - Returns: Tree structure with statistics
@@ -224,6 +236,7 @@ This approach can consume significant tokens when working with large vaults or f
   - Returns: Contents of specific directory with metadata
 
 **Example**:
+
 ```typescript
 // get_directory_structure
 {
@@ -248,6 +261,7 @@ This approach can consume significant tokens when working with large vaults or f
 **Rationale**: Mentioned in Anthropic blog but requires significant infrastructure.
 
 **Challenges**:
+
 - Requires secure execution environment with sandboxing
 - Resource limits and monitoring needed
 - Operational overhead
@@ -266,6 +280,7 @@ The current Technical Plans Management tools (`create_technical_plan`, `mark_pla
 ### Current State
 
 The technical plans tools are:
+
 - **Workflow-specific**: Tightly coupled to a particular folder structure (Inbox/Reviewed/Archive)
 - **Limited filtering**: `list_technical_plans` returns all plans or all in a folder
 - **No search**: Can't search plan content or metadata efficiently
@@ -278,11 +293,13 @@ The technical plans tools are:
 Instead of hardcoding the "technical plans" concept, create generic workflow management tools:
 
 **Replace**:
+
 - `create_technical_plan` → `create_workflow_item`
 - `mark_plan_reviewed` → `transition_workflow_item`
 - `archive_plan` → `transition_workflow_item`
 
 **With**:
+
 ```typescript
 // Generic workflow tool
 {
@@ -297,6 +314,7 @@ Instead of hardcoding the "technical plans" concept, create generic workflow man
 ```
 
 **Benefits**:
+
 - Reusable for other workflows (e.g., "Meeting Notes", "Project Ideas")
 - Less tool proliferation
 - Agents can customize workflows
@@ -306,6 +324,7 @@ Instead of hardcoding the "technical plans" concept, create generic workflow man
 **Current**: `list_technical_plans` returns full file paths and metadata
 
 **Improved**:
+
 ```typescript
 {
   tool: "summarize_plans",
@@ -339,6 +358,7 @@ Instead of hardcoding the "technical plans" concept, create generic workflow man
 ```
 
 **Benefits**:
+
 - Reduced token usage (no full paths or unnecessary metadata)
 - Quick overview without fetching full plans
 - Easier decision-making
@@ -371,6 +391,7 @@ Instead of hardcoding the "technical plans" concept, create generic workflow man
 ```
 
 **Benefits**:
+
 - Find related plans without fetching all content
 - Process search in execution environment
 - Return only relevant excerpts
@@ -398,6 +419,7 @@ Instead of hardcoding the "technical plans" concept, create generic workflow man
 ```
 
 **Benefits**:
+
 - Bulk operations in single call
 - Reduced round-trips
 - Transaction-like semantics
@@ -420,6 +442,7 @@ Instead of hardcoding the "technical plans" concept, create generic workflow man
 ```
 
 **Benefits**:
+
 - Consistent plan structure
 - Less redundant content in context
 - Faster plan creation
@@ -431,6 +454,7 @@ Given the Anthropic principles, another option is to **simplify dramatically** o
 **Option A: Use Generic File Tools + Conventions**
 
 Instead of specialized tools, use:
+
 - `put_file` with a naming convention: `Technical Plans/Inbox/{project}-{type}-{date}.md`
 - `list_files` with pattern: `Technical Plans/Inbox/*.md`
 - `search_files` to find plans
@@ -459,6 +483,7 @@ Collapse all technical plans tools into one:
 3. **Long term**: Evaluate if specialized tools add enough value vs. generic file tools + conventions
 
 The key insight from Anthropic is that **domain-specific tools should still follow context-efficient patterns**. Even specialized workflows benefit from:
+
 - Filtering and pagination
 - Metadata-only operations
 - Search with summaries
@@ -467,8 +492,10 @@ The key insight from Anthropic is that **domain-specific tools should still foll
 ## Implementation Plan
 
 ### Phase 1: File Metadata & Enhanced Reading (Items 2, 3)
+
 **Timeline**: 1 week
 **Deliverables**:
+
 - `get_file_metadata` tool
 - Enhanced `get_file` with range parameters
 - Tests and documentation
@@ -476,8 +503,10 @@ The key insight from Anthropic is that **domain-specific tools should still foll
 **Benefits**: Immediate reduction in token usage for large files
 
 ### Phase 2: List Filtering & Pagination (Item 1)
+
 **Timeline**: 1 week
 **Deliverables**:
+
 - Enhanced `list_files` with filtering, pagination, sorting
 - Summary statistics
 - Tests and documentation
@@ -485,8 +514,10 @@ The key insight from Anthropic is that **domain-specific tools should still foll
 **Benefits**: Significant token reduction for large vaults
 
 ### Phase 3: Search & Directory Tools (Items 4, 6)
+
 **Timeline**: 2 weeks
 **Deliverables**:
+
 - `search_files` tool
 - `get_directory_structure` tool
 - `list_directory` tool
@@ -495,8 +526,10 @@ The key insight from Anthropic is that **domain-specific tools should still foll
 **Benefits**: More efficient vault exploration and content discovery
 
 ### Phase 4: Batch Operations (Item 5)
+
 **Timeline**: 1 week
 **Deliverables**:
+
 - `batch_file_operations` tool
 - Transaction support (rollback on error)
 - Tests and documentation
@@ -512,6 +545,7 @@ The current implementation relies on the Obsidian Local REST API plugin as an in
 **How it works**: MCP server → HTTP → Obsidian Local REST API plugin → Obsidian
 
 **Strengths**:
+
 - ✅ Access to active note operations
 - ✅ Can execute Obsidian commands (graph view, daily notes, etc.)
 - ✅ Works with live Obsidian state
@@ -519,6 +553,7 @@ The current implementation relies on the Obsidian Local REST API plugin as an in
 - ✅ Already implemented and working
 
 **Limitations for Anthropic recommendations**:
+
 - ❌ **Network overhead**: Every operation requires HTTP round-trip
 - ❌ **Limited filtering**: Can't efficiently filter/search before returning data
 - ❌ **No caching**: Can't cache metadata or build indexes
@@ -535,6 +570,7 @@ The current implementation relies on the Obsidian Local REST API plugin as an in
 **How it works**: MCP protocol natively implemented as Obsidian plugin
 
 **Strengths**:
+
 - ✅ Direct access to all Obsidian APIs
 - ✅ No network overhead
 - ✅ Can access workspace state, settings, plugins
@@ -543,6 +579,7 @@ The current implementation relies on the Obsidian Local REST API plugin as an in
 - ✅ Can hook into Obsidian events (file changes, etc.)
 
 **Limitations**:
+
 - ❌ **Development complexity**: Need to learn Obsidian plugin API (TypeScript)
 - ❌ **Maintenance burden**: Plugin updates, compatibility with Obsidian versions
 - ❌ **Still requires Obsidian running**: No standalone mode
@@ -553,6 +590,7 @@ The current implementation relies on the Obsidian Local REST API plugin as an in
 **Implementation effort**: Medium-High (2-4 weeks)
 
 **Example use cases enabled**:
+
 - Efficient metadata-only queries without file reads
 - Built-in search index with snippet extraction
 - Batch operations with transactions
@@ -563,6 +601,7 @@ The current implementation relies on the Obsidian Local REST API plugin as an in
 **How it works**: MCP server accesses vault files directly (no Obsidian required)
 
 **Strengths**:
+
 - ✅ **No Obsidian dependency**: Works with closed vaults
 - ✅ **Maximum performance**: Direct file system access
 - ✅ **Sophisticated indexing**: Can build and maintain search indexes
@@ -572,6 +611,7 @@ The current implementation relies on the Obsidian Local REST API plugin as an in
 - ✅ **Best for Anthropic patterns**: Full control over data processing
 
 **Limitations**:
+
 - ❌ **No active note**: Can't access currently open note
 - ❌ **No command execution**: Can't trigger Obsidian commands
 - ❌ **Must parse vault structure**: Need to understand Obsidian format
@@ -583,6 +623,7 @@ The current implementation relies on the Obsidian Local REST API plugin as an in
 **Implementation effort**: Medium (1-2 weeks for basic version)
 
 **Key capabilities enabled**:
+
 ```typescript
 // Example: Efficient metadata-only operation
 const metadata = await vaultIndex.getFileMetadata("path/to/note.md");
@@ -592,7 +633,7 @@ const metadata = await vaultIndex.getFileMetadata("path/to/note.md");
 const results = await vaultIndex.search("quantum computing", {
   returnFormat: "snippets",
   contextLines: 2,
-  maxResults: 10
+  maxResults: 10,
 });
 // Only returns relevant excerpts, not full files
 
@@ -605,6 +646,7 @@ await batch.commit(); // or rollback() on error
 ```
 
 **Technology options**:
+
 - **SQLite**: For metadata index (tags, frontmatter, links, backlinks)
 - **File watchers**: Detect changes and update index
 - **Markdown parser**: Extract frontmatter, links, headings
@@ -615,16 +657,18 @@ await batch.commit(); // or rollback() on error
 **How it works**: Standalone server for read operations + REST API for live features
 
 **Strengths**:
+
 - ✅ **Best of both worlds**: Fast reads, live Obsidian integration when needed
 - ✅ **Graceful degradation**: Works without Obsidian, enhanced when running
 - ✅ **Optimal token efficiency**: Direct file access for most operations
 - ✅ **Maintains compatibility**: Can still use active note and commands
 
 **Architecture**:
+
 ```typescript
 class ObsidianMCPServer {
-  private fileSystemVault: DirectVaultAccess;  // For reads, search, metadata
-  private restApiClient?: ObsidianApiClient;    // For active note, commands
+  private fileSystemVault: DirectVaultAccess; // For reads, search, metadata
+  private restApiClient?: ObsidianApiClient; // For active note, commands
 
   async listFiles(filter?: string) {
     // Use filesystem (faster, can filter locally)
@@ -652,36 +696,39 @@ class ObsidianMCPServer {
 
 ### Comparison Matrix
 
-| Feature | REST API | Native Plugin | Standalone | Hybrid |
-|---------|----------|---------------|------------|--------|
-| **Performance** | Medium | High | Very High | Very High |
-| **Token Efficiency** | Medium | High | Very High | Very High |
-| **Active Note** | ✅ | ✅ | ❌ | ✅* |
-| **Commands** | ✅ | ✅ | ❌ | ✅* |
-| **Offline Mode** | ❌ | ❌ | ✅ | ✅ |
-| **Search/Filter** | Limited | Good | Excellent | Excellent |
-| **Metadata Only** | ❌ | ✅ | ✅ | ✅ |
-| **Batch Ops** | Poor | Good | Excellent | Excellent |
-| **Setup Complexity** | Low | Medium | Low | Medium |
-| **Maintenance** | Low | Medium | Low | Medium |
-| **Anthropic Alignment** | Low | Medium | High | High |
+| Feature                 | REST API | Native Plugin | Standalone | Hybrid    |
+| ----------------------- | -------- | ------------- | ---------- | --------- |
+| **Performance**         | Medium   | High          | Very High  | Very High |
+| **Token Efficiency**    | Medium   | High          | Very High  | Very High |
+| **Active Note**         | ✅       | ✅            | ❌         | ✅*       |
+| **Commands**            | ✅       | ✅            | ❌         | ✅*       |
+| **Offline Mode**        | ❌       | ❌            | ✅         | ✅        |
+| **Search/Filter**       | Limited  | Good          | Excellent  | Excellent |
+| **Metadata Only**       | ❌       | ✅            | ✅         | ✅        |
+| **Batch Ops**           | Poor     | Good          | Excellent  | Excellent |
+| **Setup Complexity**    | Low      | Medium        | Low        | Medium    |
+| **Maintenance**         | Low      | Medium        | Low        | Medium    |
+| **Anthropic Alignment** | Low      | Medium        | High       | High      |
 
 *When Obsidian is running
 
 ### Recommendation
 
 **Short term (Phase 1-2)**: Continue with REST API, but add:
+
 - Client-side caching of file lists and metadata
 - Request batching where possible
 - Filtering parameters to reduce data transfer
 
 **Medium term (Phase 3-4)**: Implement **Hybrid Approach**
+
 - Build standalone filesystem vault access with indexing
 - Maintain REST API client for live features
 - Tools automatically use best available backend
 - Significant token efficiency gains for most operations
 
 **Long term**: Consider **Native Plugin**
+
 - If Hybrid proves valuable, consider native plugin for even tighter integration
 - Would enable real-time vault monitoring and incremental updates
 - Best developer experience and performance
@@ -689,24 +736,28 @@ class ObsidianMCPServer {
 ### Implementation Roadmap for Hybrid
 
 **Stage 1: Basic Filesystem Access** (Week 1)
+
 - Direct file read/write operations
 - Frontmatter parsing
 - File listing with glob patterns
 - Metadata extraction (tags, links, dates)
 
 **Stage 2: Indexing** (Week 2)
+
 - SQLite metadata index
 - Full-text search with FTS5
 - File watcher for automatic index updates
 - Link graph and backlinks
 
 **Stage 3: Integration** (Week 3)
+
 - Refactor tools to use filesystem backend
 - Maintain REST API client for active note/commands
 - Automatic fallback logic
 - Performance benchmarking
 
 **Stage 4: Advanced Features** (Week 4)
+
 - Batch operations with transactions
 - Advanced search with snippets
 - Metadata-only queries
@@ -722,11 +773,11 @@ const vault = new ObsidianVault("/path/to/vault");
 
 // Efficient filtering and aggregation
 const techDocs = vault.listFiles("Technical Plans/Inbox/*.md")
-  .filter(f => f.metadata.project === "obsidian-mcp")
-  .map(f => ({ title: f.title, age: f.daysOld }));
+  .filter((f) => f.metadata.project === "obsidian-mcp")
+  .map((f) => ({ title: f.title, age: f.daysOld }));
 
 // Process data locally, return summary
-return { count: techDocs.length, avgAge: average(techDocs.map(d => d.age)) };
+return { count: techDocs.length, avgAge: average(techDocs.map((d) => d.age)) };
 ```
 
 This is more aligned with the "code execution" paradigm from the Anthropic blog than the current tool-calling approach.

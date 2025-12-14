@@ -136,8 +136,7 @@ server.registerTool(
       commandId: z.string().describe("The ID of the command to execute"),
     },
   },
-  ({ commandId }: { commandId: string }) =>
-    handlers.executeCommand(commandId),
+  ({ commandId }: { commandId: string }) => handlers.executeCommand(commandId),
 );
 
 // Get active file

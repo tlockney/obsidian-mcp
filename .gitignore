@@ -3,8 +3,7 @@
 .env.local
 .env.*.local
 
-# Deno
-deno.lock
+# Deno cache (lock file is committed for reproducible builds)
 
 # Build outputs
 build/
