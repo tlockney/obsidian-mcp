@@ -23,16 +23,69 @@ jobs:
           deno-version: v2.5.6
 
       - name: Check formatting
-        run: deno fmt --check
+        id: fmt
+        run: |
+          if deno fmt --check 2>&1; then
+            echo "status=pass" >> $GITHUB_OUTPUT
+          else
+            echo "status=fail" >> $GITHUB_OUTPUT
+            exit 1
+          fi
 
       - name: Lint
-        run: deno lint
+        id: lint
+        run: |
+          if deno lint 2>&1; then
+            echo "status=pass" >> $GITHUB_OUTPUT
+          else
+            echo "status=fail" >> $GITHUB_OUTPUT
+            exit 1
+          fi
 
       - name: Type check
-        run: deno check src/main.ts
+        id: typecheck
+        run: |
+          if deno check src/main.ts 2>&1; then
+            echo "status=pass" >> $GITHUB_OUTPUT
+          else
+            echo "status=fail" >> $GITHUB_OUTPUT
+            exit 1
+          fi
 
       - name: Run tests
-        run: deno task test
+        id: test
+        run: |
+          OUTPUT=$(deno task test 2>&1)
+          echo "$OUTPUT"
+          # Extract test count from output like "ok | 79 passed | 0 failed"
+          if echo "$OUTPUT" | grep -q "passed"; then
+            PASSED=$(echo "$OUTPUT" | grep -oP '\d+(?= passed)' | tail -1)
+            FAILED=$(echo "$OUTPUT" | grep -oP '\d+(?= failed)' | tail -1)
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "failed=$FAILED" >> $GITHUB_OUTPUT
+            echo "status=pass" >> $GITHUB_OUTPUT
+          else
+            echo "status=fail" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## CI Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Formatting | ${{ steps.fmt.outputs.status == 'pass' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Linting | ${{ steps.lint.outputs.status == 'pass' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Type Check | ${{ steps.typecheck.outputs.status == 'pass' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tests | ${{ steps.test.outputs.status == 'pass' && '✅ Pass' || '❌ Fail' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.test.outputs.passed }}" != "" ]; then
+            echo "### Test Results" >> $GITHUB_STEP_SUMMARY
+            echo "- **Passed:** ${{ steps.test.outputs.passed }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Failed:** ${{ steps.test.outputs.failed }}" >> $GITHUB_STEP_SUMMARY
+          fi
 
   build-check:
     name: Build Check
@@ -51,6 +104,7 @@ jobs:
           deno-version: v2.5.6
 
       - name: Verify build compiles
+        id: build
         run: |
           deno compile \
             --allow-net \
@@ -62,3 +116,17 @@ jobs:
             --output ./build/obsidian-mcp \
             --no-check \
             src/main.ts
+
+          # Get binary size
+          SIZE=$(du -h ./build/obsidian-mcp | cut -f1)
+          echo "size=$SIZE" >> $GITHUB_OUTPUT
+
+      - name: Generate summary
+        run: |
+          echo "## Build Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Build successful**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Target | Binary Size |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| x86_64-unknown-linux-gnu | ${{ steps.build.outputs.size }} |" >> $GITHUB_STEP_SUMMARY
