@@ -70,6 +70,26 @@ async function updateMainTs(newVersion: string): Promise<void> {
   console.log(`✓ Updated ${mainTsPath}: ${oldVersion} → ${newVersion}`);
 }
 
+async function updateCliTs(newVersion: string): Promise<void> {
+  const cliTsPath = "src/cli.ts";
+  const content = await Deno.readTextFile(cliTsPath);
+
+  // Find and replace the VERSION constant
+  const versionRegex = /(export const VERSION = ")([^"]+)(")/;
+  const match = content.match(versionRegex);
+
+  if (!match) {
+    throw new Error("Could not find VERSION constant in src/cli.ts");
+  }
+
+  const oldVersion = match[2];
+  const updatedContent = content.replace(versionRegex, `$1${newVersion}$3`);
+
+  await Deno.writeTextFile(cliTsPath, updatedContent);
+
+  console.log(`✓ Updated ${cliTsPath}: ${oldVersion} → ${newVersion}`);
+}
+
 async function runCommand(command: string, args: string[]): Promise<void> {
   const process = new Deno.Command(command, { args });
   const result = await process.output();
@@ -82,7 +102,7 @@ async function runCommand(command: string, args: string[]): Promise<void> {
 
 async function commitAndTag(version: string): Promise<void> {
   // Add all changes
-  await runCommand("git", ["add", "deno.json", "src/main.ts"]);
+  await runCommand("git", ["add", "deno.json", "src/main.ts", "src/cli.ts"]);
 
   // Commit with version message
   await runCommand("git", [
@@ -160,6 +180,7 @@ async function main(): Promise<void> {
       console.log("\n🔍 Dry run - no changes will be made");
       console.log(`Would update deno.json version to: ${newVersionString}`);
       console.log(`Would update src/main.ts version to: ${newVersionString}`);
+      console.log(`Would update src/cli.ts version to: ${newVersionString}`);
       console.log(`Would commit changes and create tag: v${newVersionString}`);
       return;
     }
@@ -186,6 +207,7 @@ async function main(): Promise<void> {
     // Update files
     await updateDenoJson(newVersionString);
     await updateMainTs(newVersionString);
+    await updateCliTs(newVersionString);
 
     // Run tests to ensure everything still works
     console.log("🧪 Running tests...");
@@ -206,7 +228,9 @@ async function main(): Promise<void> {
     console.log("  git push");
     console.log(`  git push origin v${newVersionString}`);
   } catch (error) {
-    console.error(`Error: ${error.message}`);
+    console.error(
+      `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
     Deno.exit(1);
   }
 }
