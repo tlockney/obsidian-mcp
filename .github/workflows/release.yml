@@ -30,7 +30,10 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          # Pinned to v2.5.6 due to cross-compile bug in v2.6.0
+          # See: https://github.com/denoland/deno/issues/31556
+          # TODO: Update to v2.x after v2.6.1 is released
+          deno-version: v2.5.6
 
       - name: Get version
         id: version
@@ -89,7 +92,10 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          # Pinned to v2.5.6 due to cross-compile bug in v2.6.0
+          # See: https://github.com/denoland/deno/issues/31556
+          # TODO: Update to v2.x after v2.6.1 is released
+          deno-version: v2.5.6
 
       - name: Get version
         id: version
