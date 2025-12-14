@@ -42,12 +42,25 @@ jobs:
       - name: Run tests
         run: deno task test
 
+      - name: Generate summary
+        run: |
+          echo "## Pre-Release Checks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All checks passed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Formatting | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          echo "| Linting | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tests | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+
   version-bump:
     name: Version Bump
     runs-on: ubuntu-latest
     needs: test
     outputs:
       version: ${{ steps.bump.outputs.version }}
+      old_version: ${{ steps.bump.outputs.old_version }}
 
     permissions:
       contents: write
@@ -71,6 +84,7 @@ jobs:
           # Get current version
           CURRENT=$(deno eval "import c from './deno.json' with { type: 'json' }; console.log(c.version)")
           echo "Current version: $CURRENT"
+          echo "old_version=$CURRENT" >> $GITHUB_OUTPUT
 
           # Run the version bump script (updates files only, no git operations)
           deno run --allow-read --allow-write scripts/version-bump.ts ${{ inputs.bump }} --no-git
@@ -93,6 +107,17 @@ jobs:
           git tag "v${{ steps.bump.outputs.version }}"
           git push origin "v${{ steps.bump.outputs.version }}"
 
+      - name: Generate summary
+        run: |
+          echo "## Version Bump" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Bump Type** | \`${{ inputs.bump }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Previous Version** | \`${{ steps.bump.outputs.old_version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **New Version** | \`${{ steps.bump.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Tag** | \`v${{ steps.bump.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -103,14 +128,24 @@ jobs:
         include:
           - target: x86_64-apple-darwin
             name: obsidian-mcp-mac-x86_64
+            os: macOS
+            arch: x86_64
           - target: aarch64-apple-darwin
             name: obsidian-mcp-mac-arm64
+            os: macOS
+            arch: ARM64
           - target: x86_64-unknown-linux-gnu
             name: obsidian-mcp-linux-x86_64
+            os: Linux
+            arch: x86_64
           - target: aarch64-unknown-linux-gnu
             name: obsidian-mcp-linux-arm64
+            os: Linux
+            arch: ARM64
           - target: x86_64-pc-windows-msvc
             name: obsidian-mcp-windows-x86_64
+            os: Windows
+            arch: x86_64
 
     steps:
       - uses: actions/checkout@v4
@@ -129,6 +164,7 @@ jobs:
         run: mkdir -p build
 
       - name: Build binary
+        id: compile
         run: |
           deno compile \
             --allow-net \
@@ -145,21 +181,42 @@ jobs:
         run: mkdir -p artifacts
 
       - name: Package binary
+        id: package
         run: |
           VERSION="${{ needs.version-bump.outputs.version }}"
           if [[ "${{ matrix.target }}" == *"linux"* ]]; then
-            tar -czf "artifacts/${{ matrix.name }}-v${VERSION}.tar.gz" -C build ${{ matrix.name }}
+            ARTIFACT="${{ matrix.name }}-v${VERSION}.tar.gz"
+            tar -czf "artifacts/${ARTIFACT}" -C build ${{ matrix.name }}
           elif [[ "${{ matrix.target }}" == *"windows"* ]]; then
-            cd build && zip "../artifacts/${{ matrix.name }}-v${VERSION}.zip" ${{ matrix.name }}.exe
+            ARTIFACT="${{ matrix.name }}-v${VERSION}.zip"
+            cd build && zip "../artifacts/${ARTIFACT}" ${{ matrix.name }}.exe
           else
-            cd build && zip "../artifacts/${{ matrix.name }}-v${VERSION}.zip" ${{ matrix.name }}
+            ARTIFACT="${{ matrix.name }}-v${VERSION}.zip"
+            cd build && zip "../artifacts/${ARTIFACT}" ${{ matrix.name }}
           fi
+
+          # Get artifact size
+          SIZE=$(du -h "artifacts/${ARTIFACT}" | cut -f1 || echo "artifacts/$ARTIFACT" | xargs ls -lh | awk '{print $5}')
+          echo "size=$SIZE" >> $GITHUB_OUTPUT
+          echo "artifact=$ARTIFACT" >> $GITHUB_OUTPUT
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}-v${{ needs.version-bump.outputs.version }}
           path: artifacts/*
+
+      - name: Generate summary
+        run: |
+          echo "## Build: ${{ matrix.os }} (${{ matrix.arch }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Build successful**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Target | \`${{ matrix.target }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Artifact | \`${{ steps.package.outputs.artifact }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Size | ${{ steps.package.outputs.size }} |" >> $GITHUB_STEP_SUMMARY
 
   release:
     name: Release
@@ -181,7 +238,16 @@ jobs:
           pattern: "*-v${{ needs.version-bump.outputs.version }}"
           merge-multiple: true
 
+      - name: List artifacts
+        id: list
+        run: |
+          echo "Artifacts:"
+          ls -lh artifacts/
+          COUNT=$(ls -1 artifacts/ | wc -l)
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
+
       - name: Create Release
+        id: release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.version-bump.outputs.version }}
@@ -190,3 +256,21 @@ jobs:
           prerelease: ${{ inputs.prerelease }}
           generate_release_notes: true
           files: artifacts/*
+
+      - name: Generate summary
+        run: |
+          echo "## Release Created 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`v${{ needs.version-bump.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release URL:** ${{ steps.release.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts (${{ steps.list.outputs.count }} files)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Architecture | File |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS | x86_64 | \`obsidian-mcp-mac-x86_64-v${{ needs.version-bump.outputs.version }}.zip\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS | ARM64 | \`obsidian-mcp-mac-arm64-v${{ needs.version-bump.outputs.version }}.zip\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux | x86_64 | \`obsidian-mcp-linux-x86_64-v${{ needs.version-bump.outputs.version }}.tar.gz\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux | ARM64 | \`obsidian-mcp-linux-arm64-v${{ needs.version-bump.outputs.version }}.tar.gz\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Windows | x86_64 | \`obsidian-mcp-windows-x86_64-v${{ needs.version-bump.outputs.version }}.zip\` |" >> $GITHUB_STEP_SUMMARY
