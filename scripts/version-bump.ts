@@ -5,6 +5,7 @@ import { parseArgs } from "@std/cli/parse-args";
 interface VersionBumpOptions {
   type: "major" | "minor" | "patch";
   dryRun?: boolean;
+  noGit?: boolean;
 }
 
 function parseVersion(versionString: string): [number, number, number] {
@@ -125,25 +126,28 @@ Version Bump Script
 Usage:
   deno task version-bump <type>
   deno task version-bump <type> --dry-run
+  deno task version-bump <type> --no-git
 
 Arguments:
   type        Version increment type: major, minor, or patch
 
 Options:
   --dry-run   Show what would be changed without making changes
+  --no-git    Update files only, skip git commit and tag (for CI use)
   --help      Show this help message
 
 Examples:
-  deno task version-bump patch     # 1.0.0 → 1.0.1
-  deno task version-bump minor     # 1.0.1 → 1.1.0
-  deno task version-bump major     # 1.1.0 → 2.0.0
+  deno task version-bump patch          # 1.0.0 → 1.0.1
+  deno task version-bump minor          # 1.0.1 → 1.1.0
+  deno task version-bump major          # 1.1.0 → 2.0.0
   deno task version-bump patch --dry-run
+  deno task version-bump patch --no-git # CI mode: update files only
 `);
 }
 
 async function main(): Promise<void> {
   const args = parseArgs(Deno.args, {
-    boolean: ["dry-run", "help"],
+    boolean: ["dry-run", "no-git", "help"],
     string: ["_"],
   });
 
@@ -162,6 +166,7 @@ async function main(): Promise<void> {
   const options: VersionBumpOptions = {
     type: type as "major" | "minor" | "patch",
     dryRun: args["dry-run"],
+    noGit: args["no-git"],
   };
 
   try {
@@ -181,27 +186,34 @@ async function main(): Promise<void> {
       console.log(`Would update deno.json version to: ${newVersionString}`);
       console.log(`Would update src/main.ts version to: ${newVersionString}`);
       console.log(`Would update src/cli.ts version to: ${newVersionString}`);
-      console.log(`Would commit changes and create tag: v${newVersionString}`);
+      if (!options.noGit) {
+        console.log(
+          `Would commit changes and create tag: v${newVersionString}`,
+        );
+      }
       return;
     }
 
-    // Ensure we're in a git repository and working tree is clean
-    try {
-      const gitStatus = new Deno.Command("git", {
-        args: ["status", "--porcelain"],
-      });
-      const result = await gitStatus.output();
-      const output = new TextDecoder().decode(result.stdout);
+    // Skip git checks if --no-git is used (CI mode)
+    if (!options.noGit) {
+      // Ensure we're in a git repository and working tree is clean
+      try {
+        const gitStatus = new Deno.Command("git", {
+          args: ["status", "--porcelain"],
+        });
+        const result = await gitStatus.output();
+        const output = new TextDecoder().decode(result.stdout);
 
-      if (output.trim().length > 0) {
-        console.error(
-          "Error: Working directory is not clean. Please commit or stash changes first.",
-        );
+        if (output.trim().length > 0) {
+          console.error(
+            "Error: Working directory is not clean. Please commit or stash changes first.",
+          );
+          Deno.exit(1);
+        }
+      } catch {
+        console.error("Error: Not in a git repository");
         Deno.exit(1);
       }
-    } catch {
-      console.error("Error: Not in a git repository");
-      Deno.exit(1);
     }
 
     // Update files
@@ -209,24 +221,29 @@ async function main(): Promise<void> {
     await updateMainTs(newVersionString);
     await updateCliTs(newVersionString);
 
-    // Run tests to ensure everything still works
-    console.log("🧪 Running tests...");
-    await runCommand("deno", ["task", "test"]);
-    console.log("✓ Tests passed");
+    // Skip tests and linting if --no-git is used (CI runs these separately)
+    if (!options.noGit) {
+      // Run tests to ensure everything still works
+      console.log("🧪 Running tests...");
+      await runCommand("deno", ["task", "test"]);
+      console.log("✓ Tests passed");
 
-    // Run formatting and linting
-    console.log("🎨 Formatting and linting...");
-    await runCommand("deno", ["fmt"]);
-    await runCommand("deno", ["lint"]);
-    console.log("✓ Code formatted and linted");
+      // Run formatting and linting
+      console.log("🎨 Formatting and linting...");
+      await runCommand("deno", ["fmt"]);
+      await runCommand("deno", ["lint"]);
+      console.log("✓ Code formatted and linted");
 
-    // Commit and tag
-    await commitAndTag(newVersionString);
+      // Commit and tag
+      await commitAndTag(newVersionString);
 
-    console.log(`\n🎉 Successfully bumped version to ${newVersionString}`);
-    console.log("\nNext steps:");
-    console.log("  git push");
-    console.log(`  git push origin v${newVersionString}`);
+      console.log(`\n🎉 Successfully bumped version to ${newVersionString}`);
+      console.log("\nNext steps:");
+      console.log("  git push");
+      console.log(`  git push origin v${newVersionString}`);
+    } else {
+      console.log(`\n✓ Version files updated to ${newVersionString}`);
+    }
   } catch (error) {
     console.error(
       `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
