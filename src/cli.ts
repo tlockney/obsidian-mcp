@@ -11,7 +11,7 @@ const DEFAULT_API_URL = "http://localhost:27123";
 
 // Version is updated by scripts/version-bump.ts
 // Keep in sync with deno.json and src/main.ts
-export const VERSION = "0.3.4";
+export const VERSION = "1.0.0";
 
 export function parseCliArgs(args: string[]): CliConfig {
   const parsed = parseArgs(args, {
