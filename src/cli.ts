@@ -9,6 +9,10 @@ export interface CliConfig {
 
 const DEFAULT_API_URL = "http://localhost:27123";
 
+// Version is updated by scripts/version-bump.ts
+// Keep in sync with deno.json and src/main.ts
+export const VERSION = "0.3.4";
+
 export function parseCliArgs(args: string[]): CliConfig {
   const parsed = parseArgs(args, {
     string: ["api-url", "api-key"],
@@ -46,7 +50,7 @@ export function parseCliArgs(args: string[]): CliConfig {
 
 export function showHelp(): void {
   const helpText = `
-Obsidian MCP Server v0.2.0
+Obsidian MCP Server v${VERSION}
 
 A Model Context Protocol (MCP) server that enables AI models to interact with
 Obsidian vaults through the Local REST API plugin.

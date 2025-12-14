@@ -1,5 +1,5 @@
 import { assertEquals, assertThrows } from "@std/assert";
-import { parseCliArgs, showHelp, validateConfig } from "./cli.ts";
+import { parseCliArgs, showHelp, validateConfig, VERSION } from "./cli.ts";
 
 // Store original env vars for cleanup
 const originalApiUrl = Deno.env.get("OBSIDIAN_API_URL");
@@ -211,6 +211,33 @@ Deno.test("showHelp - includes usage examples", () => {
   } finally {
     console.log = originalLog;
   }
+});
+
+Deno.test("showHelp - displays current version", () => {
+  const originalLog = console.log;
+  let capturedOutput = "";
+
+  console.log = (msg: string) => {
+    capturedOutput = msg;
+  };
+
+  try {
+    showHelp();
+
+    // Should contain a version number pattern (not the old hardcoded v0.2.0)
+    assertEquals(capturedOutput.includes("v0.2.0"), false);
+    // Should contain a version in format vX.Y.Z
+    assertEquals(/v\d+\.\d+\.\d+/.test(capturedOutput), true);
+    // Should contain the VERSION constant
+    assertEquals(capturedOutput.includes(`v${VERSION}`), true);
+  } finally {
+    console.log = originalLog;
+  }
+});
+
+Deno.test("VERSION constant - follows semver format", () => {
+  // VERSION should be a valid semver string
+  assertEquals(/^\d+\.\d+\.\d+$/.test(VERSION), true);
 });
 
 // =============================================================================
