@@ -3,10 +3,14 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: "Version to release (e.g., 0.3.5)"
+      bump:
+        description: "Version bump type"
         required: true
-        type: string
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
       prerelease:
         description: "Is this a pre-release?"
         required: false
@@ -14,31 +18,9 @@ on:
         default: false
 
 jobs:
-  validate:
-    name: Validate
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.validate.outputs.version }}
-
-    steps:
-      - name: Validate version format
-        id: validate
-        run: |
-          VERSION="${{ inputs.version }}"
-          # Remove 'v' prefix if provided
-          VERSION="${VERSION#v}"
-          # Validate semver format (basic check)
-          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
-            echo "Error: Version '$VERSION' is not valid semver format"
-            exit 1
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Validated version: $VERSION"
-
   test:
     name: Test
     runs-on: ubuntu-latest
-    needs: validate
 
     steps:
       - uses: actions/checkout@v4
@@ -58,14 +40,14 @@ jobs:
         run: deno lint
 
       - name: Run tests
-        run: deno test --allow-env --allow-net --allow-read
+        run: deno task test
 
   version-bump:
     name: Version Bump
     runs-on: ubuntu-latest
-    needs: [validate, test]
+    needs: test
     outputs:
-      sha: ${{ steps.commit.outputs.sha }}
+      version: ${{ steps.bump.outputs.version }}
 
     permissions:
       contents: write
@@ -84,28 +66,37 @@ jobs:
           deno-version: v2.5.6
 
       - name: Bump version
+        id: bump
         run: |
-          deno run --allow-read --allow-write scripts/version-bump.ts ${{ needs.validate.outputs.version }}
+          # Get current version
+          CURRENT=$(deno eval "import c from './deno.json' with { type: 'json' }; console.log(c.version)")
+          echo "Current version: $CURRENT"
+
+          # Run the version bump script (updates files only, no git operations)
+          deno run --allow-read --allow-write scripts/version-bump.ts ${{ inputs.bump }} --no-git
+
+          # Get new version
+          NEW=$(deno eval "import c from './deno.json' with { type: 'json' }; console.log(c.version)")
+          echo "New version: $NEW"
+          echo "version=$NEW" >> $GITHUB_OUTPUT
 
       - name: Commit version bump
-        id: commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add deno.json src/main.ts src/cli.ts
-          git commit -m "chore: bump version to ${{ needs.validate.outputs.version }}"
+          git commit -m "chore: bump version to ${{ steps.bump.outputs.version }}"
           git push
-          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
       - name: Create and push tag
         run: |
-          git tag "v${{ needs.validate.outputs.version }}"
-          git push origin "v${{ needs.validate.outputs.version }}"
+          git tag "v${{ steps.bump.outputs.version }}"
+          git push origin "v${{ steps.bump.outputs.version }}"
 
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [validate, version-bump]
+    needs: version-bump
 
     strategy:
       matrix:
@@ -124,7 +115,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: v${{ needs.validate.outputs.version }}
+          ref: v${{ needs.version-bump.outputs.version }}
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -155,7 +146,7 @@ jobs:
 
       - name: Package binary
         run: |
-          VERSION="${{ needs.validate.outputs.version }}"
+          VERSION="${{ needs.version-bump.outputs.version }}"
           if [[ "${{ matrix.target }}" == *"linux"* ]]; then
             tar -czf "artifacts/${{ matrix.name }}-v${VERSION}.tar.gz" -C build ${{ matrix.name }}
           elif [[ "${{ matrix.target }}" == *"windows"* ]]; then
@@ -167,12 +158,12 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.name }}-v${{ needs.validate.outputs.version }}
+          name: ${{ matrix.name }}-v${{ needs.version-bump.outputs.version }}
           path: artifacts/*
 
   release:
     name: Release
-    needs: [validate, build]
+    needs: [version-bump, build]
     runs-on: ubuntu-latest
 
     permissions:
@@ -181,20 +172,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: v${{ needs.validate.outputs.version }}
+          ref: v${{ needs.version-bump.outputs.version }}
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          pattern: "*-v${{ needs.validate.outputs.version }}"
+          pattern: "*-v${{ needs.version-bump.outputs.version }}"
           merge-multiple: true
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.validate.outputs.version }}
-          name: v${{ needs.validate.outputs.version }}
+          tag_name: v${{ needs.version-bump.outputs.version }}
+          name: v${{ needs.version-bump.outputs.version }}
           draft: false
           prerelease: ${{ inputs.prerelease }}
           generate_release_notes: true
