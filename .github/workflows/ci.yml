@@ -32,7 +32,7 @@ jobs:
         run: deno check src/main.ts
 
       - name: Run tests
-        run: deno test --allow-env --allow-net --allow-read
+        run: deno task test
 
   build-check:
     name: Build Check
