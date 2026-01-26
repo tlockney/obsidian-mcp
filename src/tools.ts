@@ -169,6 +169,63 @@ export function createToolHandlers(apiClient: ObsidianApiClient) {
         return createErrorResponse("append to active file", error);
       }
     },
+
+    searchSimple: async (
+      query: string,
+      contextLength?: number,
+    ): Promise<ToolResponse> => {
+      try {
+        const results = await apiClient.searchSimple(query, contextLength ?? 100);
+        if (results.length === 0) {
+          return createSuccessResponse(`No results found for: "${query}"`);
+        }
+        const formatted = results
+          .map(
+            (r, i) => `${i + 1}. ${r.filename} (score: ${r.score.toFixed(2)})`,
+          )
+          .join("\n");
+        return createSuccessResponse(
+          `Found ${results.length} results for "${query}":\n${formatted}`,
+        );
+      } catch (error) {
+        return createErrorResponse("search vault", error);
+      }
+    },
+
+    getResolvedDocument: async (query: string): Promise<ToolResponse> => {
+      try {
+        const results = await apiClient.searchSimple(query, 100);
+
+        if (results.length === 0) {
+          return createErrorResponse(
+            "resolve document",
+            new Error(`No document found matching: "${query}"`),
+          );
+        }
+
+        if (results.length > 1) {
+          const matches = results
+            .map((r, i) => `${i + 1}. ${r.filename}`)
+            .join("\n");
+          return createErrorResponse(
+            "resolve document",
+            new Error(
+              `Multiple documents match "${query}". Be more specific:\n${matches}`,
+            ),
+          );
+        }
+
+        // Exactly one match - get the content
+        const path = results[0].filename;
+        const content = await apiClient.getFile(path);
+
+        return createSuccessResponse(
+          `Path: ${path}\n\n---\n\n${content}`,
+        );
+      } catch (error) {
+        return createErrorResponse("resolve document", error);
+      }
+    },
   };
 }
 

@@ -29,10 +29,28 @@ export const ApiStatusResponseSchema = z.object({
   authenticated: z.boolean(),
 }).passthrough();
 
+// Search result schemas
+export const SearchMatchSchema = z.object({
+  context: z.string(),
+  match: z.object({
+    start: z.number(),
+    end: z.number(),
+  }),
+});
+
+export const SimpleSearchResultSchema = z.object({
+  filename: z.string(),
+  score: z.number(),
+  matches: z.array(SearchMatchSchema),
+});
+
+export const SimpleSearchResponseSchema = z.array(SimpleSearchResultSchema);
+
 // Types
 export type VaultFilesResponse = z.infer<typeof VaultFilesResponseSchema>;
 export type CommandsResponse = z.infer<typeof CommandsResponseSchema>;
 export type ApiStatusResponse = z.infer<typeof ApiStatusResponseSchema>;
+export type SimpleSearchResult = z.infer<typeof SimpleSearchResultSchema>;
 
 export interface ObsidianApiClientConfig {
   apiUrl: string;
@@ -198,5 +216,16 @@ export class ObsidianApiClient {
       },
       body: content,
     });
+  }
+
+  async searchSimple(
+    query: string,
+    contextLength: number = 100,
+  ): Promise<SimpleSearchResult[]> {
+    const url = `/search/simple/?query=${encodeURIComponent(query)}&contextLength=${contextLength}`;
+    const response = await this.request<SimpleSearchResult[]>(url, {
+      method: "POST",
+    });
+    return SimpleSearchResponseSchema.parse(response);
   }
 }

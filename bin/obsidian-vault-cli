@@ -1,0 +1,162 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Obsidian Vault CLI - Alternative to MCP for environments without MCP support
+# Requires: httpie (http command), jq
+#
+# Configuration via environment variables:
+#   OBSIDIAN_API_URL - API endpoint (default: http://localhost:27123)
+#   OBSIDIAN_API_KEY - API authentication key
+#
+# Or via .env.obsidian file in script directory or current directory
+
+# Load environment variables
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "${SCRIPT_DIR}/.env.obsidian" ]]; then
+    source "${SCRIPT_DIR}/.env.obsidian"
+elif [[ -f ".env.obsidian" ]]; then
+    source ".env.obsidian"
+fi
+
+OBSIDIAN_API_URL="${OBSIDIAN_API_URL:-http://localhost:27123}"
+OBSIDIAN_API_KEY="${OBSIDIAN_API_KEY:-}"
+
+usage() {
+    cat << 'USAGE'
+Usage: obsidian-vault-cli <command> [arguments]
+
+Commands:
+  ping                       - Test API connection
+  list_files [path]          - List files in vault directory
+  get_file <path>            - Get file contents (markdown)
+  get_file_json <path>       - Get file with metadata (JSON: frontmatter, tags, stats)
+  search <query>             - Search for files by content/name (returns full paths)
+  get_resolved_document <q>  - Get document by name (fails if not exactly one match)
+
+Environment Variables:
+  OBSIDIAN_API_URL        - API endpoint (default: http://localhost:27123)
+  OBSIDIAN_API_KEY        - API authentication key
+
+Examples:
+  obsidian-vault-cli ping
+  obsidian-vault-cli list_files
+  obsidian-vault-cli list_files "projects/"
+  obsidian-vault-cli get_file "projects/readme.md"
+  obsidian-vault-cli get_file_json "projects/readme.md"
+  obsidian-vault-cli search "meeting notes"
+  obsidian-vault-cli get_resolved_document "weekly-standup"
+USAGE
+}
+
+check_dependencies() {
+    if ! command -v http &> /dev/null; then
+        echo "Error: 'http' (httpie) is required but not installed." >&2
+        echo "Install with: pip install httpie" >&2
+        exit 1
+    fi
+    if ! command -v jq &> /dev/null; then
+        echo "Error: 'jq' is required but not installed." >&2
+        exit 1
+    fi
+}
+
+cmd_ping() {
+    if http GET "${OBSIDIAN_API_URL}/" "Authorization:Bearer ${OBSIDIAN_API_KEY}" &>/dev/null; then
+        echo "Connected to ${OBSIDIAN_API_URL}"
+        return 0
+    else
+        echo "Failed to connect to ${OBSIDIAN_API_URL}" >&2
+        return 1
+    fi
+}
+
+cmd_list_files() {
+    local path="${1:-}"
+    http GET "${OBSIDIAN_API_URL}/vault/${path}" \
+        "Authorization:Bearer ${OBSIDIAN_API_KEY}" \
+        | jq -r '.files[]'
+}
+
+cmd_get_file() {
+    local path="${1:?File path required}"
+    http GET "${OBSIDIAN_API_URL}/vault/${path}" \
+        "Authorization:Bearer ${OBSIDIAN_API_KEY}"
+}
+
+cmd_get_file_json() {
+    local path="${1:?File path required}"
+    http GET "${OBSIDIAN_API_URL}/vault/${path}" \
+        "Authorization:Bearer ${OBSIDIAN_API_KEY}" \
+        "Accept:application/vnd.olrapi.note+json"
+}
+
+cmd_search() {
+    local query="${1:?Search query required}"
+    http --json POST "${OBSIDIAN_API_URL}/search/simple/" \
+        "Authorization:Bearer ${OBSIDIAN_API_KEY}" \
+        "query==${query}" \
+        | jq -r '.[] | "\(.filename) (score: \(.score))"'
+}
+
+cmd_get_resolved_document() {
+    local query="${1:?Search query required}"
+    local results
+    results=$(http --json POST "${OBSIDIAN_API_URL}/search/simple/" \
+        "Authorization:Bearer ${OBSIDIAN_API_KEY}" \
+        "query==${query}")
+
+    local count
+    count=$(echo "$results" | jq 'length')
+
+    if [[ "$count" -eq 0 ]]; then
+        echo "Error: No document found matching: \"${query}\"" >&2
+        return 1
+    fi
+
+    if [[ "$count" -gt 1 ]]; then
+        echo "Error: Multiple documents match \"${query}\". Be more specific:" >&2
+        echo "$results" | jq -r 'to_entries | .[] | "\(.key + 1). \(.value.filename)"' >&2
+        return 1
+    fi
+
+    # Exactly one match - get the content
+    local path
+    path=$(echo "$results" | jq -r '.[0].filename')
+
+    echo "Path: ${path}"
+    echo ""
+    echo "---"
+    echo ""
+    http GET "${OBSIDIAN_API_URL}/vault/${path}" \
+        "Authorization:Bearer ${OBSIDIAN_API_KEY}"
+}
+
+main() {
+    local command="${1:-}"
+
+    if [[ -z "$command" ]]; then
+        usage
+        exit 1
+    fi
+
+    check_dependencies
+
+    shift
+
+    case "$command" in
+        ping) cmd_ping ;;
+        list_files) cmd_list_files "$@" ;;
+        get_file) cmd_get_file "$@" ;;
+        get_file_json) cmd_get_file_json "$@" ;;
+        search) cmd_search "$@" ;;
+        get_resolved_document) cmd_get_resolved_document "$@" ;;
+        -h|--help|help) usage ;;
+        *)
+            echo "Unknown command: $command" >&2
+            usage
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
