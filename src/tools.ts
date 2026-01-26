@@ -169,6 +169,28 @@ export function createToolHandlers(apiClient: ObsidianApiClient) {
         return createErrorResponse("append to active file", error);
       }
     },
+
+    searchSimple: async (
+      query: string,
+      contextLength?: number,
+    ): Promise<ToolResponse> => {
+      try {
+        const results = await apiClient.searchSimple(query, contextLength ?? 100);
+        if (results.length === 0) {
+          return createSuccessResponse(`No results found for: "${query}"`);
+        }
+        const formatted = results
+          .map(
+            (r, i) => `${i + 1}. ${r.filename} (score: ${r.score.toFixed(2)})`,
+          )
+          .join("\n");
+        return createSuccessResponse(
+          `Found ${results.length} results for "${query}":\n${formatted}`,
+        );
+      } catch (error) {
+        return createErrorResponse("search vault", error);
+      }
+    },
   };
 }
 

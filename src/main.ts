@@ -185,6 +185,26 @@ server.registerTool(
   ({ content }: { content: string }) => handlers.appendActive(content),
 );
 
+// Search vault
+server.registerTool(
+  "search",
+  {
+    description:
+      "Search for files in the Obsidian vault by text content or filename. Returns full file paths.",
+    inputSchema: {
+      query: z
+        .string()
+        .describe("Search query (text to find in files or filenames)"),
+      contextLength: z
+        .number()
+        .optional()
+        .describe("How much context to return around matches (default: 100)"),
+    },
+  },
+  ({ query, contextLength }: { query: string; contextLength?: number }) =>
+    handlers.searchSimple(query, contextLength),
+);
+
 // Main function to start the server
 async function main() {
   console.error("Starting Obsidian MCP Server...");
