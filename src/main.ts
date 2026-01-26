@@ -205,6 +205,21 @@ server.registerTool(
     handlers.searchSimple(query, contextLength),
 );
 
+// Get resolved document (search + get in one step, fails if not exactly one match)
+server.registerTool(
+  "get_resolved_document",
+  {
+    description:
+      "Find a document by name and return its path and content. Only succeeds if exactly one document matches. Use when you know the document name but not its full path.",
+    inputSchema: {
+      query: z
+        .string()
+        .describe("Document name or unique identifying text to search for"),
+    },
+  },
+  ({ query }: { query: string }) => handlers.getResolvedDocument(query),
+);
+
 // Main function to start the server
 async function main() {
   console.error("Starting Obsidian MCP Server...");

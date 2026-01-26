@@ -26,11 +26,12 @@ usage() {
 Usage: obsidian-vault-cli <command> [arguments]
 
 Commands:
-  ping                    - Test API connection
-  list_files [path]       - List files in vault directory
-  get_file <path>         - Get file contents (markdown)
-  get_file_json <path>    - Get file with metadata (JSON: frontmatter, tags, stats)
-  search <query>          - Search for files by content/name (returns full paths)
+  ping                       - Test API connection
+  list_files [path]          - List files in vault directory
+  get_file <path>            - Get file contents (markdown)
+  get_file_json <path>       - Get file with metadata (JSON: frontmatter, tags, stats)
+  search <query>             - Search for files by content/name (returns full paths)
+  get_resolved_document <q>  - Get document by name (fails if not exactly one match)
 
 Environment Variables:
   OBSIDIAN_API_URL        - API endpoint (default: http://localhost:27123)
@@ -43,6 +44,7 @@ Examples:
   obsidian-vault-cli get_file "projects/readme.md"
   obsidian-vault-cli get_file_json "projects/readme.md"
   obsidian-vault-cli search "meeting notes"
+  obsidian-vault-cli get_resolved_document "weekly-standup"
 USAGE
 }
 
@@ -96,6 +98,39 @@ cmd_search() {
         | jq -r '.[] | "\(.filename) (score: \(.score))"'
 }
 
+cmd_get_resolved_document() {
+    local query="${1:?Search query required}"
+    local results
+    results=$(http --json POST "${OBSIDIAN_API_URL}/search/simple/" \
+        "Authorization:Bearer ${OBSIDIAN_API_KEY}" \
+        "query==${query}")
+
+    local count
+    count=$(echo "$results" | jq 'length')
+
+    if [[ "$count" -eq 0 ]]; then
+        echo "Error: No document found matching: \"${query}\"" >&2
+        return 1
+    fi
+
+    if [[ "$count" -gt 1 ]]; then
+        echo "Error: Multiple documents match \"${query}\". Be more specific:" >&2
+        echo "$results" | jq -r 'to_entries | .[] | "\(.key + 1). \(.value.filename)"' >&2
+        return 1
+    fi
+
+    # Exactly one match - get the content
+    local path
+    path=$(echo "$results" | jq -r '.[0].filename')
+
+    echo "Path: ${path}"
+    echo ""
+    echo "---"
+    echo ""
+    http GET "${OBSIDIAN_API_URL}/vault/${path}" \
+        "Authorization:Bearer ${OBSIDIAN_API_KEY}"
+}
+
 main() {
     local command="${1:-}"
 
@@ -114,6 +149,7 @@ main() {
         get_file) cmd_get_file "$@" ;;
         get_file_json) cmd_get_file_json "$@" ;;
         search) cmd_search "$@" ;;
+        get_resolved_document) cmd_get_resolved_document "$@" ;;
         -h|--help|help) usage ;;
         *)
             echo "Unknown command: $command" >&2

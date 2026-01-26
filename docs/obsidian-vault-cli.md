@@ -117,13 +117,50 @@ $ obsidian-vault-cli get_file_json "Projects/project-alpha.md"
 
 Search for files by content or filename. Returns full file paths with relevance scores.
 
-**Use case:** Find the full path to a file when you only know its name.
-
 ```bash
 $ obsidian-vault-cli search "meeting notes"
 Projects/meetings/weekly-standup.md (score: 0.95)
 Daily Notes/2025-01-20.md (score: 0.72)
 Archive/2024-meeting-notes.md (score: 0.45)
+```
+
+### get_resolved_document
+
+Find a document by name and return its path and content. **Only succeeds if exactly one document matches.**
+
+**Use case:** When you know the document name but not its full path, and want the content in one step.
+
+```bash
+# Success: exactly one match
+$ obsidian-vault-cli get_resolved_document "weekly-standup"
+Path: Projects/meetings/weekly-standup.md
+
+---
+
+---
+title: Weekly Standup
+tags:
+  - meeting
+  - recurring
+---
+# Weekly Standup
+
+Meeting notes...
+```
+
+```bash
+# Error: multiple matches
+$ obsidian-vault-cli get_resolved_document "meeting"
+Error: Multiple documents match "meeting". Be more specific:
+1. Projects/meetings/weekly-standup.md
+2. Projects/meetings/quarterly-review.md
+3. Archive/2024-meeting-notes.md
+```
+
+```bash
+# Error: no matches
+$ obsidian-vault-cli get_resolved_document "nonexistent-doc"
+Error: No document found matching: "nonexistent-doc"
 ```
 
 ## MCP vs CLI Comparison
@@ -134,5 +171,6 @@ Archive/2024-meeting-notes.md (score: 0.45)
 | List files | `mcp__obsidian__list_files` | `obsidian-vault-cli list_files` |
 | Get file | `mcp__obsidian__get_file` | `obsidian-vault-cli get_file` |
 | Search | `mcp__obsidian__search` | `obsidian-vault-cli search` |
+| Resolve & get | `mcp__obsidian__get_resolved_document` | `obsidian-vault-cli get_resolved_document` |
 
 Both provide the same functionality. Use MCP when available (better integration with AI assistants), use CLI for scripting or environments without MCP support.
